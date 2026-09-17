@@ -2,7 +2,7 @@
 
 A weighted, replayable alternative to [wheelofnames.com](https://wheelofnames.com/) for scheduling UW–Madison building manager shifts. Runs entirely in the browser — no backend, no login, just this one HTML file.
 
-**Live page:** _add your GitHub Pages link here once it's live_
+**Live page:** _https://1immy.github.io/union-BM-scheduler/_
 
 ## Why this exists
 
