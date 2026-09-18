@@ -144,6 +144,11 @@ tr:last-child td { border-bottom: none; }
 .modal h3 { margin: 0 0 12px; font-family: 'Zilla Slab', serif; font-size: 18px; }
 .modal .cand { display: block; width: 100%; text-align: left; padding: 11px 12px; margin-bottom: 7px; border-radius: 5px; font-size: 15.5px; }
 
+.reveal-modal { max-width: 480px; text-align: center; }
+.confetti-host { position: relative; overflow: hidden; min-height: 150px; display: flex; align-items: center; justify-content: center; }
+.confetti-piece { position: absolute; top: -12px; width: 8px; height: 14px; border-radius: 2px; opacity: 0.95; animation: confetti-fall linear forwards; }
+@keyframes confetti-fall { to { transform: translateY(280px) rotate(540deg); opacity: 0; } }
+
 .toast {
   position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
   background: var(--accent); color: var(--accent-ink); padding: 12px 20px;
@@ -617,6 +622,7 @@ function weightedPickAndRemove(pool) {
 
 function runDraw() {
   if (state.managers.length === 0) { toast('Add building managers to the roster first'); return; }
+  closeModal();
   const noDouble = state.week.noDoubleBook;
   let pool = state.managers.slice();
   const drawOrder = [];
@@ -802,32 +808,60 @@ function renderResults() {
       <div class="stage-card">
         <div class="stage-label">Pick ${idx + 2} of ${state.results.rows.length}</div>
         <div class="stage-shift">${tierBadge(next.tier)}</div>
-        <div class="stage-name" id="stage-name">?</div>
         <button class="accent" id="draw-btn" onclick="revealNext()">Draw!</button>
       </div>`;
     if (finalizeBtn) finalizeBtn.disabled = true;
   }
 }
 
+function fireConfetti(host) {
+  const colors = ['#FFC845', '#FF8F66', '#6FD3C7', '#FF7A7A', '#F6F5F1'];
+  for (let i = 0; i < 32; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.left = (Math.random() * 100) + '%';
+    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+    el.style.animationDuration = (900 + Math.random() * 700) + 'ms';
+    el.style.animationDelay = (Math.random() * 150) + 'ms';
+    el.style.transform = `rotate(${Math.random() * 360}deg)`;
+    host.appendChild(el);
+    setTimeout(() => el.remove(), 2000);
+  }
+}
+
 function revealNext() {
   const idx = state.results.revealedIndex + 1;
   const row = state.results.rows[idx];
-  const btn = document.getElementById('draw-btn');
-  const nameEl = document.getElementById('stage-name');
-  if (btn) btn.disabled = true;
   const finalName = row.workingName;
   const pool = (row.candidatePool && row.candidatePool.length > 1) ? row.candidatePool : null;
+
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop">
+    <div class="modal reveal-modal">
+      <div class="stage-label">Pick ${idx + 1} of ${state.results.rows.length}</div>
+      <div class="stage-shift">${tierBadge(row.tier)}</div>
+      <div class="confetti-host" id="confetti-host">
+        <div class="stage-name" id="reveal-modal-name">?</div>
+      </div>
+      <button class="ghost" id="reveal-continue-btn" onclick="finishReveal(${idx})" style="display:none;">Continue</button>
+    </div>
+  </div>`;
+  const nameEl = document.getElementById('reveal-modal-name');
+  const confettiHost = document.getElementById('confetti-host');
 
   function land() {
     nameEl.textContent = finalName;
     nameEl.classList.add('landed');
-    setTimeout(() => { state.results.revealedIndex = idx; saveState(); renderResults(); }, 550);
+    fireConfetti(confettiHost);
+    const continueBtn = document.getElementById('reveal-continue-btn');
+    if (continueBtn) continueBtn.style.display = 'inline-block';
+    setTimeout(() => finishReveal(idx), 2600);
   }
+
   if (!pool) { nameEl.textContent = finalName; land(); return; }
 
   let ticks = 0;
   const maxTicks = 14;
-  nameEl.classList.remove('landed');
   (function tick() {
     if (ticks < maxTicks) {
       nameEl.textContent = pool[Math.floor(Math.random() * pool.length)];
@@ -837,8 +871,17 @@ function revealNext() {
   })();
 }
 
+function finishReveal(idx) {
+  if (!state.results || state.results.revealedIndex >= idx) { closeModal(); return; }
+  state.results.revealedIndex = idx;
+  saveState();
+  closeModal();
+  renderResults();
+}
+
 function skipToFull() {
   if (!state.results) return;
+  closeModal();
   state.results.revealedIndex = state.results.rows.length - 1;
   saveState(); renderResults();
 }
