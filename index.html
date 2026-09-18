@@ -169,6 +169,17 @@ tr:last-child td { border-bottom: none; }
 .settings-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .settings-row label { font-size: 14.5px; color: var(--ink-soft); font-weight: 600; }
 
+.status-board { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.status-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.status-label { font-size: 12.5px; font-weight: 800; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; margin-right: 2px; }
+.chip { display: inline-block; font-size: 13px; font-weight: 700; padding: 4px 11px; border-radius: 20px; }
+.chip-green { background: #17331F; color: #7CE18B; }
+.chip-red { background: #3A1D1D; color: #FF9A9A; }
+
+.week-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.detail-title { font-weight: 800; font-size: 12.5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.detail-text { font-size: 14px; color: var(--ink); line-height: 1.65; }
+
 @media (max-width: 560px) {
   .result-row { flex-wrap: wrap; }
   .rank-num { width: 26px; font-size: 19px; }
@@ -180,7 +191,7 @@ tr:last-child td { border-bottom: none; }
   <header class="top">
     <div>
       <h1>Building Manager Draft Order</h1>
-      <div class="subtitle">Sets who picks first — building &amp; shift time are chosen live, not assigned by this tool</div>
+      <div class="subtitle">Sets pick order. Building and shift time are chosen live, not assigned by this tool.</div>
     </div>
   </header>
 
@@ -195,14 +206,12 @@ tr:last-child td { border-bottom: none; }
   <div class="panel active" id="panel-roster">
     <section class="card">
       <h2>Building managers</h2>
-      <p class="hint">Weight is the average of where someone landed over their last few draws — later positions score higher, so they're more likely drawn early this time.</p>
+      <p class="hint">Weight goes up when someone is drafted late and down when they're drafted early. The effect carries over week to week instead of resetting, so repeated bad luck keeps building until it's corrected.</p>
 
       <div class="settings-row">
-        <div class="row">
-          <label for="lookback-weeks">Weeks of history to weight by</label>
-          <input type="number" id="lookback-weeks" min="1" max="12" style="width:64px;">
-        </div>
-        <button class="danger-ghost" onclick="resetHistory()">Reset history (new season)</button>
+        <button class="danger-ghost" onclick="resetWeights()">Reset weighting (new season)</button>
+        <button class="secondary" onclick="document.getElementById('import-file').click()">Import list</button>
+        <input type="file" id="import-file" accept=".csv,.txt" style="display:none;" onchange="importRoster(event)">
       </div>
 
       <div class="row" style="margin-bottom:14px;">
@@ -210,7 +219,7 @@ tr:last-child td { border-bottom: none; }
         <button class="accent" onclick="addManager()">Add</button>
       </div>
       <table id="roster-table">
-        <thead><tr><th>Name</th><th>Recent positions</th><th>Weight this week</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Last position</th><th>Credit</th><th>Weight this week</th><th></th></tr></thead>
         <tbody id="roster-body"></tbody>
       </table>
       <div class="empty-state" id="roster-empty" style="display:none;">
@@ -231,7 +240,7 @@ tr:last-child td { border-bottom: none; }
       <div class="tier-head">
         <div>
           <div class="name">1 · Weekend (first 8, fixed)</div>
-          <div class="desc">Reference list of the fixed slots — shown as pick options during the draw, not auto-assigned</div>
+          <div class="desc">Reference list of the fixed slots. Shown as pick options during the draw, not auto-assigned.</div>
         </div>
         <span class="badge tier1">Drafted first</span>
       </div>
@@ -242,7 +251,7 @@ tr:last-child td { border-bottom: none; }
       <div class="tier-head">
         <div>
           <div class="name">1b · Extra swap-eligible slots (positions 9–10)</div>
-          <div class="desc">Optional — anything else you want covered inside Rule 2's swap window</div>
+          <div class="desc">Optional. Anything else you want covered inside Rule 2's swap window.</div>
         </div>
       </div>
       <div class="tier-body">
@@ -255,7 +264,7 @@ tr:last-child td { border-bottom: none; }
       <div class="tier-head">
         <div>
           <div class="name">2 · Special event</div>
-          <div class="desc">Badger Bash, Idea Fest Support, or whatever comes up — volunteers fill first, the draft only fills what's left</div>
+          <div class="desc">Badger Bash, Idea Fest Support, or anything similar. Volunteers fill first, and the draft only fills what's left.</div>
         </div>
         <label class="checkbox-row"><input type="checkbox" id="event-active"> Happening this week</label>
       </div>
@@ -278,7 +287,7 @@ tr:last-child td { border-bottom: none; }
       <div class="tier-head">
         <div>
           <div class="name">3 · Red Gym</div>
-          <div class="desc">Drafted before SAC — pick order only, building/time chosen live</div>
+          <div class="desc">Drafted before SAC. Pick order only, building and time chosen live.</div>
         </div>
       </div>
       <div class="tier-body">
@@ -294,7 +303,7 @@ tr:last-child td { border-bottom: none; }
       <div class="tier-head">
         <div>
           <div class="name">4 · SAC</div>
-          <div class="desc">Drafted last — any pick can be split between two people, decided live</div>
+          <div class="desc">Drafted last. Any pick can be split between two people, decided live.</div>
         </div>
         <span class="badge tier4">Drafted last</span>
       </div>
@@ -318,7 +327,7 @@ tr:last-child td { border-bottom: none; }
       <div class="row" style="justify-content:space-between;">
         <div>
           <h2 style="margin-bottom:3px;">Run the draft</h2>
-          <p class="hint" style="margin-bottom:0;">Orders Weekend → Badger Bash → Red Gym → SAC, weighted by recent history. Each person picks their own building &amp; time live.</p>
+          <p class="hint" style="margin-bottom:0;">Orders Weekend, Special Event, Red Gym, then SAC, weighted by recent history. Each person picks their own building and time live.</p>
         </div>
         <button class="accent" onclick="runDraw()">Run the draft</button>
       </div>
@@ -332,7 +341,8 @@ tr:last-child td { border-bottom: none; }
           <button class="accent" id="finalize-btn" onclick="finalizeWeek()" disabled>Finalize &amp; save to history</button>
         </div>
       </div>
-      <p class="hint">The order's already locked in — <strong>Draw!</strong> just reveals it. <strong>Swap</strong> is only offered on names that haven't been revealed yet — exactly as Rule 2 intends.</p>
+      <p class="hint">The order is already locked in. Draw just reveals it. Swap only offers names that haven't been revealed yet, as Rule 2 intends.</p>
+      <div id="status-board" class="status-board"></div>
       <div id="revealed-list"></div>
       <div id="reveal-stage"></div>
     </section>
@@ -341,8 +351,11 @@ tr:last-child td { border-bottom: none; }
   <!-- HISTORY -->
   <div class="panel" id="panel-history">
     <section class="card">
-      <h2>Past weeks</h2>
-      <p class="hint">Each finalized week's order feeds the rolling weight average above.</p>
+      <div class="row" style="justify-content:space-between;">
+        <h2 style="margin:0;">Past weeks</h2>
+        <button class="secondary" onclick="exportHistory()">Export history</button>
+      </div>
+      <p class="hint">Each finalized week updates the weighting above. Click "More info" on any week for the full detail.</p>
       <div id="history-list"></div>
       <div class="empty-state" id="history-empty" style="display:none;">
         <div class="big">No finalized weeks yet</div>
@@ -379,7 +392,6 @@ function freshState() {
   return {
     managers: [],
     history: [],
-    settings: { lookbackWeeks: 3 },
     week: {
       label: '',
       tier1: defaultTier1.map(t => ({ id: uid(), label: t })),
@@ -395,7 +407,7 @@ function freshState() {
 
 let state = loadState() || freshState();
 // --- migrations from earlier versions ---
-if (!state.settings) state.settings = { lookbackWeeks: 3 };
+delete state.settings;
 if (Array.isArray(state.week.redgym) || (state.week.redgym && 'count' in state.week.redgym)) state.week.redgym = { fri: 0, sat: 0, sun: 0 };
 if (Array.isArray(state.week.sac) || (state.week.sac && 'count' in state.week.sac)) state.week.sac = { fri: 0, sat: 0, sun: 0 };
 if (state.week.bash && !state.week.event) {
@@ -403,7 +415,7 @@ if (state.week.bash && !state.week.event) {
   delete state.week.bash;
 }
 if (!state.week.event) state.week.event = { name: 'Badger Bash', active: false, count: 4, volunteers: [] };
-if (state.managers) state.managers.forEach(m => { delete m.lastRank; });
+if (state.managers) state.managers.forEach(m => { delete m.lastRank; if (m.credit === undefined) m.credit = 0; });
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -424,38 +436,32 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-// ---------- weighting (rolling average over N most recent weeks) ----------
-function recentPositions(m) {
-  const lookback = state.settings.lookbackWeeks || 1;
-  return state.history.slice(0, lookback).map(w => {
-    const idx = w.order.indexOf(m.name);
-    return idx === -1 ? null : idx + 1;
-  });
+// ---------- weighting (persistent modifier, carries over week to week) ----------
+function lastPosition(m) {
+  if (!state.history.length) return null;
+  const idx = state.history[0].order.indexOf(m.name);
+  return idx === -1 ? null : idx + 1;
 }
 function computeWeight(m) {
   if (m.override !== null && m.override !== undefined && m.override !== '') return Number(m.override);
-  const positions = recentPositions(m).filter(p => p !== null);
-  if (positions.length === 0) {
-    const n = state.managers.length || 1;
-    return Math.ceil((n + 1) / 2);
-  }
-  const avg = positions.reduce((a, b) => a + b, 0) / positions.length;
-  return Math.round(avg * 10) / 10;
+  const baseline = Math.ceil(((state.managers.length || 1) + 1) / 2);
+  const w = baseline + (m.credit || 0);
+  return Math.max(0.5, Math.round(w * 10) / 10);
 }
 
 // ---------- roster rendering ----------
 function renderRoster() {
-  document.getElementById('lookback-weeks').value = state.settings.lookbackWeeks;
   const body = document.getElementById('roster-body');
   body.innerHTML = '';
   document.getElementById('roster-empty').style.display = state.managers.length ? 'none' : 'block';
   state.managers.forEach(m => {
     const tr = document.createElement('tr');
     const w = computeWeight(m);
-    const positions = recentPositions(m).map(p => p === null ? '—' : ('#' + p)).join(', ');
+    const lastPos = lastPosition(m);
     tr.innerHTML = `
       <td class="roster-name">${escapeHtml(m.name)}</td>
-      <td class="pos-history">${positions || '<span style="color:var(--ink-soft)">no history</span>'}</td>
+      <td class="pos-history">${lastPos ? '#' + lastPos + ' last week' : '<span style="color:var(--ink-soft)">no history</span>'}</td>
+      <td class="num">${(m.credit || 0).toFixed(1)}</td>
       <td><span class="weight-pill">weight ${w}</span></td>
       <td style="text-align:right;">
         <button class="ghost" onclick="overrideWeight('${m.id}')">Override</button>
@@ -468,7 +474,7 @@ function addManager() {
   const input = document.getElementById('new-name');
   const name = input.value.trim();
   if (!name) return;
-  state.managers.push({ id: uid(), name, override: null });
+  state.managers.push({ id: uid(), name, override: null, credit: 0 });
   input.value = '';
   saveState(); renderRoster();
 }
@@ -483,16 +489,35 @@ function overrideWeight(id) {
   m.override = val.trim() === '' ? null : Number(val);
   saveState(); renderRoster();
 }
-function resetHistory() {
-  if (!confirm("Clear all draw history? Everyone's weight goes back to neutral — use this to start a fresh season/roster.")) return;
-  state.history = [];
-  saveState(); renderRoster(); renderHistory();
-  toast('History cleared — weights reset to neutral');
-}
-document.getElementById('lookback-weeks').addEventListener('change', e => {
-  state.settings.lookbackWeeks = Math.max(1, Number(e.target.value) || 1);
+function resetWeights() {
+  if (!confirm("Reset everyone's weighting modifier back to neutral? This starts a fresh season without deleting your saved history log below.")) return;
+  state.managers.forEach(m => { m.credit = 0; });
   saveState(); renderRoster();
-});
+  toast('Weighting reset to neutral for everyone');
+}
+function importRoster(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = String(reader.result || '');
+    const names = text.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    const existing = new Set(state.managers.map(m => m.name.toLowerCase()));
+    let added = 0;
+    names.forEach(name => {
+      if (!existing.has(name.toLowerCase())) {
+        state.managers.push({ id: uid(), name, override: null, credit: 0 });
+        existing.add(name.toLowerCase());
+        added++;
+      }
+    });
+    saveState(); renderRoster();
+    toast(added ? `${added} name${added === 1 ? '' : 's'} added` : 'No new names found in that file');
+  };
+  reader.onerror = () => toast('Could not read that file');
+  reader.readAsText(file);
+  e.target.value = '';
+}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -611,8 +636,8 @@ function runDraw() {
     const picked = drawOne(pool);
     results.push({
       id: uid(), tier: 1, shiftLabel: `Weekend pick ${idx + 1}`,
-      assignedName: picked ? picked.name : '— not enough people —',
-      workingName: picked ? picked.name : '— not enough people —',
+      assignedName: picked ? picked.name : '(not enough people)',
+      workingName: picked ? picked.name : '(not enough people)',
       swapped: false, swapEligible: idx < 10, candidatePool: snapshot, pickedOption: null
     });
   });
@@ -645,9 +670,9 @@ function runDraw() {
       const snapshot = pool.map(m => m.name);
       const picked = drawOne(pool);
       results.push({
-        id: uid(), tier: 3, shiftLabel: `Red Gym — ${dayLabels[day]}`,
-        assignedName: picked ? picked.name : '— not enough people —',
-        workingName: picked ? picked.name : '— not enough people —',
+        id: uid(), tier: 3, shiftLabel: `Red Gym (${dayLabels[day]})`,
+        assignedName: picked ? picked.name : '(not enough people)',
+        workingName: picked ? picked.name : '(not enough people)',
         swapped: false, swapEligible: false, candidatePool: snapshot, pickedOption: null
       });
     }
@@ -659,9 +684,9 @@ function runDraw() {
       const snapshot = pool.map(m => m.name);
       const picked = drawOne(pool);
       results.push({
-        id: uid(), tier: 4, shiftLabel: `SAC — ${dayLabels[day]}`,
-        assignedName: picked ? picked.name : '— not enough people —',
-        workingName: picked ? picked.name : '— not enough people —',
+        id: uid(), tier: 4, shiftLabel: `SAC (${dayLabels[day]})`,
+        assignedName: picked ? picked.name : '(not enough people)',
+        workingName: picked ? picked.name : '(not enough people)',
         swapped: false, swapEligible: false, splitWith: null, candidatePool: snapshot, pickedOption: null
       });
     }
@@ -706,7 +731,7 @@ function buildResultRow(r, i) {
     const claimed = new Set(state.results.rows.filter(rr => rr.tier === 1 && rr.id !== r.id && rr.pickedOption).map(rr => rr.pickedOption));
     const options = (state.results.weekendOptions || []).filter(opt => !claimed.has(opt));
     pickerHtml = `<select class="pick-select" onchange="setPickedOption('${r.id}', this.value)">
-      <option value="">— what did they pick? —</option>
+      <option value="">What did they pick?</option>
       ${options.map(opt => `<option value="${escapeHtml(opt)}" ${r.pickedOption === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('')}
     </select>`;
   } else if (r.tier === 3 || r.tier === 4) {
@@ -719,8 +744,8 @@ function buildResultRow(r, i) {
       <div class="shift-name">${escapeHtml(r.shiftLabel)} ${tierBadge(r.tier)}</div>
       <div class="assign-line">
         Up to pick: <span class="who">${escapeHtml(r.workingName)}</span>
-        ${r.swapped ? `<span class="swap-note"> — swapped for ${escapeHtml(r.assignedName)}</span>` : ''}
-        ${r.splitWith ? `<span class="swap-note"> — split with ${escapeHtml(r.splitWith)}</span>` : ''}
+        ${r.swapped ? `<span class="swap-note"> (swapped for ${escapeHtml(r.assignedName)})</span>` : ''}
+        ${r.splitWith ? `<span class="swap-note"> (split with ${escapeHtml(r.splitWith)})</span>` : ''}
       </div>
       ${pickerHtml}
     </div>
@@ -734,8 +759,34 @@ function setPickedOption(rowId, value) {
   saveState(); renderResults();
 }
 
+function renderStatusBoard() {
+  const board = document.getElementById('status-board');
+  if (!board) return;
+  if (!state.results) { board.innerHTML = ''; return; }
+  const idx = state.results.revealedIndex;
+  const rows = state.results.rows;
+  let html = '';
+
+  const weekendOptions = state.results.weekendOptions || [];
+  if (weekendOptions.length) {
+    const claimed = new Set(rows.filter(r => r.tier === 1 && r.pickedOption).map(r => r.pickedOption));
+    html += `<div class="status-group"><span class="status-label">Weekend</span>` +
+      weekendOptions.map(opt => `<span class="chip ${claimed.has(opt) ? 'chip-red' : 'chip-green'}">${escapeHtml(opt)}</span>`).join('') +
+      `</div>`;
+  }
+  [[2, 'Special Event'], [3, 'Red Gym'], [4, 'SAC']].forEach(([t, label]) => {
+    const total = rows.filter(r => r.tier === t).length;
+    if (!total) return;
+    const remaining = rows.filter((r, i) => r.tier === t && i > idx).length;
+    html += `<div class="status-group"><span class="status-label">${label}</span>
+      <span class="chip ${remaining > 0 ? 'chip-green' : 'chip-red'}">${remaining} of ${total} still open</span></div>`;
+  });
+  board.innerHTML = html;
+}
+
 function renderResults() {
   if (!state.results) return;
+  renderStatusBoard();
   const revealedList = document.getElementById('revealed-list');
   const stage = document.getElementById('reveal-stage');
   revealedList.innerHTML = '';
@@ -743,7 +794,7 @@ function renderResults() {
   state.results.rows.forEach((r, i) => { if (i <= idx) revealedList.appendChild(buildResultRow(r, i)); });
   const finalizeBtn = document.getElementById('finalize-btn');
   if (idx >= state.results.rows.length - 1) {
-    stage.innerHTML = `<div class="done-msg">Everyone's drafted — finalize whenever you're ready.</div>`;
+    stage.innerHTML = `<div class="done-msg">Everyone's drafted. Finalize whenever you're ready.</div>`;
     if (finalizeBtn) finalizeBtn.disabled = false;
   } else {
     const next = state.results.rows[idx + 1];
@@ -800,14 +851,14 @@ function openSwap(rowId) {
   if (pool.length === 0) {
     modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal">
       <h3>No one left to swap to</h3>
-      <p class="hint">Rule 2 needs a volunteer whose name hasn't been drawn yet — everyone else has already been revealed.</p>
+      <p class="hint">Rule 2 needs a volunteer whose name hasn't been drawn yet. Everyone else has already been revealed.</p>
       <button class="secondary" onclick="closeModal()">Close</button>
     </div></div>`;
     return;
   }
   modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <h3>Swap "${escapeHtml(row.shiftLabel)}"</h3>
-    <p class="hint">${escapeHtml(row.assignedName)} keeps their place on the wheel for next week — pick who's actually covering it:</p>
+    <p class="hint">${escapeHtml(row.assignedName)} keeps their place on the wheel for next week. Pick who's actually covering it:</p>
     ${pool.map(m => `<button class="secondary cand" onclick="doSwap('${rowId}','${m.id}')">${escapeHtml(m.name)}</button>`).join('')}
     <button class="ghost" onclick="closeModal()" style="margin-top:6px;">Cancel</button>
   </div></div>`;
@@ -852,8 +903,37 @@ function closeModal(e) { if (e && e.target !== e.currentTarget) return; document
 
 function finalizeWeek() {
   if (!state.results) return;
-  if (!confirm("Save this week's draw order to history? This updates everyone's rolling weight.")) return;
-  state.history.unshift({ id: uid(), date: new Date().toISOString(), label: state.week.label || 'Untitled week', order: state.results.drawOrder });
+  if (!confirm("Save this week's draw order to history? This updates everyone's weighting.")) return;
+
+  const order = state.results.drawOrder;
+  const weightsUsed = state.managers.map(m => ({ name: m.name, weight: computeWeight(m) }));
+
+  // Update each drafted person's credit: later than the field's midpoint raises it, earlier lowers it.
+  const T = order.length;
+  const mid = (T + 1) / 2;
+  order.forEach((name, i) => {
+    const person = state.managers.find(mgr => mgr.name === name);
+    if (person) person.credit = Math.round(((person.credit || 0) + ((i + 1) - mid)) * 10) / 10;
+  });
+
+  state.history.unshift({
+    id: uid(),
+    date: new Date().toISOString(),
+    label: state.week.label || 'Untitled week',
+    order,
+    weights: weightsUsed,
+    setup: {
+      weekendOptions: state.results.weekendOptions || [],
+      redgym: { ...state.week.redgym },
+      sac: { ...state.week.sac },
+      event: { name: state.week.event.name, count: state.week.event.count, active: state.week.event.active, volunteers: state.week.event.volunteers.slice() }
+    },
+    rows: state.results.rows.map(r => ({
+      shiftLabel: r.shiftLabel, tier: r.tier, workingName: r.workingName,
+      assignedName: r.assignedName, pickedOption: r.pickedOption, swapped: r.swapped, splitWith: r.splitWith
+    }))
+  });
+
   state.week.tier1b = [];
   state.week.redgym = { fri: 0, sat: 0, sun: 0 };
   state.week.sac = { fri: 0, sat: 0, sun: 0 };
@@ -865,8 +945,75 @@ function finalizeWeek() {
   renderRoster(); renderAllShiftLists();
   document.getElementById('results-card').style.display = 'none';
   renderHistory();
-  toast('Week saved — weights updated');
+  toast('Week saved. Weighting updated.');
   document.querySelector('.tab-btn[data-tab="history"]').click();
+}
+
+const expandedWeeks = new Set();
+function toggleWeekDetail(id) {
+  if (expandedWeeks.has(id)) expandedWeeks.delete(id); else expandedWeeks.add(id);
+  renderHistory();
+}
+function buildWeekDetailHtml(week) {
+  const weightsText = (week.weights || []).map(w => `${escapeHtml(w.name)}: ${w.weight}`).join(', ') || 'not recorded';
+  const setup = week.setup || {};
+  const ev = setup.event || {};
+  const rg = setup.redgym || {};
+  const sc = setup.sac || {};
+  let picksText = 'not recorded';
+  if (week.rows && week.rows.length) {
+    picksText = week.rows.map(r => {
+      let line = `${escapeHtml(r.shiftLabel)}: ${escapeHtml(r.workingName)}`;
+      if (r.pickedOption) line += ` (${escapeHtml(r.pickedOption)})`;
+      if (r.swapped) line += ` [swapped for ${escapeHtml(r.assignedName)}]`;
+      if (r.splitWith) line += ` [split with ${escapeHtml(r.splitWith)}]`;
+      return line;
+    }).join('<br>');
+  }
+  return `<div class="week-detail">
+    <div class="detail-block"><div class="detail-title">Weights used</div><div class="detail-text">${weightsText}</div></div>
+    <div class="detail-block"><div class="detail-title">Setup</div><div class="detail-text">
+      Weekend options: ${(setup.weekendOptions || []).map(escapeHtml).join(', ') || 'none'}<br>
+      Red Gym: Fri ${rg.fri || 0}, Sat ${rg.sat || 0}, Sun ${rg.sun || 0}<br>
+      SAC: Fri ${sc.fri || 0}, Sat ${sc.sat || 0}, Sun ${sc.sun || 0}<br>
+      Special event: ${ev.active ? `${escapeHtml(ev.name || '')} (${ev.count} slots)` : 'not held'}
+    </div></div>
+    <div class="detail-block"><div class="detail-title">Picks</div><div class="detail-text">${picksText}</div></div>
+  </div>`;
+}
+
+async function exportHistory() {
+  const payload = JSON.stringify({
+    exportedAt: new Date().toISOString(),
+    managers: state.managers.map(m => ({ name: m.name, credit: m.credit || 0 })),
+    history: state.history
+  }, null, 2);
+  const filename = `bm-draft-history-${new Date().toISOString().slice(0, 10)}.json`;
+
+  if (window.claude && typeof window.claude.use === 'function') {
+    try {
+      const downloads = await window.claude.use('downloads');
+      if (downloads) {
+        await downloads.save({ filename, data: payload });
+        toast('History exported');
+        return;
+      }
+    } catch (e) {
+      if (e && e.code === 'declined') return;
+      // fall through to a plain browser download
+    }
+  }
+  try {
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('History exported');
+  } catch (e) {
+    toast('Could not export history');
+  }
 }
 
 function renderHistory() {
@@ -877,12 +1024,17 @@ function renderHistory() {
     const div = document.createElement('div');
     div.className = 'week-entry';
     const d = new Date(week.date);
+    const isOpen = expandedWeeks.has(week.id);
     div.innerHTML = `
       <div class="date-line">
-        <span>${escapeHtml(week.label)} <span style="color:var(--ink-soft); font-weight:500;">— ${d.toLocaleDateString()}</span></span>
-        <button class="danger-ghost" onclick="deleteHistory('${week.id}')">Delete</button>
+        <span>${escapeHtml(week.label)} <span style="color:var(--ink-soft); font-weight:500;">(${d.toLocaleDateString()})</span></span>
+        <div class="row">
+          <button class="ghost" onclick="toggleWeekDetail('${week.id}')">${isOpen ? 'Hide info' : 'More info'}</button>
+          <button class="danger-ghost" onclick="deleteHistory('${week.id}')">Delete</button>
+        </div>
       </div>
-      <div class="order-list">${week.order.map((n, i) => `<span>${i + 1}. ${escapeHtml(n)}</span>`).join('')}</div>`;
+      <div class="order-list">${week.order.map((n, i) => `<span>${i + 1}. ${escapeHtml(n)}</span>`).join('')}</div>
+      ${isOpen ? buildWeekDetailHtml(week) : ''}`;
     list.appendChild(div);
   });
 }
