@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Building Manager Draft Order</title>
+<title>BM Drafts</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgNDAwIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgcng9Ijg4IiBmaWxsPSIjQzUwNTBDIi8+CiAgPGNpcmNsZSBjeD0iMjAwIiBjeT0iMTgwIiByPSIxNTAiIGZpbGw9IiNGM0VDREMiIHN0cm9rZT0iIzFCMUIxQiIgc3Ryb2tlLXdpZHRoPSI4Ii8+CiAgPHN2ZyB4PSI5NSIgeT0iNzUiIHdpZHRoPSIyMTAiIGhlaWdodD0iMjEwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+CiAgICA8cGF0aCBkPSJNNDAgNTUgQzM1IDMwIDU1IDE1IDY4IDM1IEM2MCA0NSA1MCA1NSA0MCA1NSBaIiBmaWxsPSIjMUIxQjFCIi8+CiAgICA8cGF0aCBkPSJNMTYwIDU1IEMxNjUgMzAgMTQ1IDE1IDEzMiAzNSBDMTQwIDQ1IDE1MCA1NSAxNjAgNTUgWiIgZmlsbD0iIzFCMUIxQiIvPgogICAgPHBhdGggZD0iTTEwMCAzMCBDMTQwIDMwIDE2NSA2MCAxNjUgMTAwIEMxNjUgMTQ1IDEzNSAxNzUgMTAwIDE3NSBDNjUgMTc1IDM1IDE0NSAzNSAxMDAgQzM1IDYwIDYwIDMwIDEwMCAzMCBaIiBmaWxsPSIjRjNFQ0RDIi8+CiAgICA8cGF0aCBkPSJNNDUgNTUgQzMzIDc4IDM0IDExMiA1NiAxNDEgQzY2IDE1MiA3OSAxNTYgODcgMTUwIEM3MSAxMzAgNjUgMTAwIDcwIDc0IEM3MyA1OSA2MSA0OSA0NSA1NSBaIiBmaWxsPSIjMUIxQjFCIi8+CiAgICA8cGF0aCBkPSJNMTU1IDU1IEMxNjcgNzggMTY2IDExMiAxNDQgMTQxIEMxMzQgMTUyIDEyMSAxNTYgMTEzIDE1MCBDMTI5IDEzMCAxMzUgMTAwIDEzMCA3NCBDMTI3IDU5IDEzOSA0OSAxNTUgNTUgWiIgZmlsbD0iIzFCMUIxQiIvPgogICAgPHJlY3QgeD0iOTAiIHk9IjM0IiB3aWR0aD0iMjAiIGhlaWdodD0iMTMyIiByeD0iMTAiIGZpbGw9IiNGM0VDREMiLz4KICAgIDxjaXJjbGUgY3g9IjgwIiBjeT0iOTYiIHI9IjYuNSIgZmlsbD0iIzFCMUIxQiIvPgogICAgPGNpcmNsZSBjeD0iMTIwIiBjeT0iOTYiIHI9IjYuNSIgZmlsbD0iIzFCMUIxQiIvPgogICAgPGVsbGlwc2UgY3g9IjEwMCIgY3k9IjE1MiIgcng9IjEwIiByeT0iNyIgZmlsbD0iIzFCMUIxQiIvPgogIDwvc3ZnPgogIDx0ZXh0IHg9IjIwMCIgeT0iMzU4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQW50b24sIEFyaWFsIEJsYWNrLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjQwIiBsZXR0ZXItc3BhY2luZz0iMiIgZmlsbD0iI0YzRUNEQyI+Qk08L3RleHQ+Cjwvc3ZnPgo=">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Zilla+Slab:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #0A0A0C;
@@ -15,11 +16,12 @@
   --ink: #F6F5F1;
   --ink-soft: #A6A6AD;
   --line: #303036;
-  --accent: #FFC845;
-  --accent-ink: #14140A;
-  --accent-soft: #3B2E10;
-  --warm: #FF8F66;
-  --warm-soft: #3A2418;
+  --accent: #C5050C;
+  --accent-bright: #FF4757;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #3A1216;
+  --warm: #FFC845;
+  --warm-soft: #3B2E10;
   --danger: #FF7A7A;
   --danger-soft: #3A1D1D;
   --teal: #6FD3C7;
@@ -44,8 +46,19 @@ header.top {
   padding-bottom: 16px; margin-bottom: 26px;
 }
 h1 {
-  font-family: 'Zilla Slab', Georgia, serif;
-  font-weight: 700; font-size: 32px; margin: 0; letter-spacing: -0.01em;
+  font-family: 'Anton', 'Zilla Slab', Georgia, serif;
+  font-weight: 400; font-size: 34px; margin: 0; letter-spacing: 0.02em;
+}
+.brand-row { display: flex; align-items: center; gap: 14px; }
+.brand-badge-wrap { flex-shrink: 0; width: 52px; height: 52px; }
+.brand-tag {
+  font-size: 12px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--accent-bright); margin-top: 2px;
+}
+.brand-footer {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--line);
+  color: var(--ink-soft); font-size: 13px; letter-spacing: 0.04em;
 }
 .subtitle { color: var(--ink-soft); font-size: 15px; margin-top: 4px; }
 nav.tabs {
@@ -99,7 +112,7 @@ tr:last-child td { border-bottom: none; }
 .num { font-variant-numeric: tabular-nums; }
 .roster-name { font-weight: 700; }
 .weight-pill {
-  display: inline-block; background: var(--accent-soft); color: var(--accent);
+  display: inline-block; background: var(--accent-soft); color: var(--accent-bright);
   border-radius: 20px; padding: 3px 12px; font-size: 13.5px; font-weight: 700;
 }
 .pos-history { color: var(--ink-soft); font-size: 13.5px; }
@@ -115,7 +128,7 @@ tr:last-child td { border-bottom: none; }
 .shift-line { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
 .shift-line input[type=text] { flex: 1; }
 .badge { display: inline-block; font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.01em; }
-.badge.tier1 { background: var(--accent-soft); color: var(--accent); }
+.badge.tier1 { background: var(--accent-soft); color: var(--accent-bright); }
 .badge.tier2 { background: var(--warm-soft); color: var(--warm); }
 .badge.tier3 { background: var(--teal-soft); color: var(--teal); }
 .badge.tier4 { background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--line); }
@@ -166,7 +179,7 @@ tr:last-child td { border-bottom: none; }
   min-height: 1.1em; margin-bottom: 22px; color: var(--ink-soft);
   transition: transform 0.15s ease;
 }
-.stage-name.landed { color: var(--accent); transform: scale(1.08); }
+.stage-name.landed { color: var(--warm); transform: scale(1.08); }
 .done-msg { text-align: center; padding: 12px 0 2px; color: var(--ink-soft); font-size: 15px; }
 
 .foot-note { font-size: 13.5px; color: var(--ink-soft); margin-top: 6px; }
@@ -194,9 +207,28 @@ tr:last-child td { border-bottom: none; }
 <body>
 <div class="wrap">
   <header class="top">
-    <div>
-      <h1>Building Manager Draft Order</h1>
-      <div class="subtitle">Sets pick order. Building and shift time are chosen live, not assigned by this tool.</div>
+    <div class="brand-row">
+      <div class="brand-badge-wrap">
+        <svg viewBox="0 0 200 200" width="52" height="52" aria-hidden="true">
+          <circle cx="100" cy="100" r="98" fill="var(--accent)"></circle>
+          <g transform="translate(16,8) scale(0.84)">
+            <path d="M40 55 C35 30 55 15 68 35 C60 45 50 55 40 55 Z" fill="var(--bg)"></path>
+            <path d="M160 55 C165 30 145 15 132 35 C140 45 150 55 160 55 Z" fill="var(--bg)"></path>
+            <path d="M100 30 C140 30 165 60 165 100 C165 145 135 175 100 175 C65 175 35 145 35 100 C35 60 60 30 100 30 Z" fill="var(--ink)"></path>
+            <path d="M45 55 C33 78 34 112 56 141 C66 152 79 156 87 150 C71 130 65 100 70 74 C73 59 61 49 45 55 Z" fill="var(--bg)"></path>
+            <path d="M155 55 C167 78 166 112 144 141 C134 152 121 156 113 150 C129 130 135 100 130 74 C127 59 139 49 155 55 Z" fill="var(--bg)"></path>
+            <rect x="90" y="34" width="20" height="132" rx="10" fill="var(--ink)"></rect>
+            <circle cx="80" cy="96" r="6.5" fill="var(--bg)"></circle>
+            <circle cx="120" cy="96" r="6.5" fill="var(--bg)"></circle>
+            <ellipse cx="100" cy="152" rx="10" ry="7" fill="var(--bg)"></ellipse>
+          </g>
+        </svg>
+      </div>
+      <div>
+        <h1>BM Drafts</h1>
+        <div class="brand-tag">Wisconsin Union Building Managers</div>
+        <div class="subtitle">Sets pick order. Building and shift time are chosen live, not assigned by this tool.</div>
+      </div>
     </div>
   </header>
 
@@ -362,6 +394,23 @@ tr:last-child td { border-bottom: none; }
       </div>
     </section>
   </div>
+  <footer class="brand-footer">
+    <svg viewBox="0 0 200 200" width="24" height="24" aria-hidden="true">
+      <circle cx="100" cy="100" r="98" fill="var(--accent)"></circle>
+      <g transform="translate(16,8) scale(0.84)">
+        <path d="M40 55 C35 30 55 15 68 35 C60 45 50 55 40 55 Z" fill="var(--bg)"></path>
+        <path d="M160 55 C165 30 145 15 132 35 C140 45 150 55 160 55 Z" fill="var(--bg)"></path>
+        <path d="M100 30 C140 30 165 60 165 100 C165 145 135 175 100 175 C65 175 35 145 35 100 C35 60 60 30 100 30 Z" fill="var(--ink)"></path>
+        <path d="M45 55 C33 78 34 112 56 141 C66 152 79 156 87 150 C71 130 65 100 70 74 C73 59 61 49 45 55 Z" fill="var(--bg)"></path>
+        <path d="M155 55 C167 78 166 112 144 141 C134 152 121 156 113 150 C129 130 135 100 130 74 C127 59 139 49 155 55 Z" fill="var(--bg)"></path>
+        <rect x="90" y="34" width="20" height="132" rx="10" fill="var(--ink)"></rect>
+        <circle cx="80" cy="96" r="6.5" fill="var(--bg)"></circle>
+        <circle cx="120" cy="96" r="6.5" fill="var(--bg)"></circle>
+        <ellipse cx="100" cy="152" rx="10" ry="7" fill="var(--bg)"></ellipse>
+      </g>
+    </svg>
+    <span>BM Drafts &middot; Wisconsin Union Building Managers</span>
+  </footer>
 </div>
 
 <div id="modal-root"></div>
@@ -803,7 +852,7 @@ function renderResults() {
 }
 
 function fireConfetti(host) {
-  const colors = ['#FFC845', '#FF8F66', '#6FD3C7', '#FF7A7A', '#F6F5F1'];
+  const colors = ['#C5050C', '#FFC845', '#6FD3C7', '#F6F5F1', '#FF8F66'];
   for (let i = 0; i < 32; i++) {
     const el = document.createElement('div');
     el.className = 'confetti-piece';
