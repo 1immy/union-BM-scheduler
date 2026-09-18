@@ -3,420 +3,175 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Building Manager Shift Draw</title>
+<title>Building Manager Draft Order</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #EAE7DD;
-  --surface: #FFFFFF;
-  --surface-2: #F2F0E7;
-  --ink: #1C2521;
-  --ink-soft: #5B655F;
-  --line: #CDC7B6;
-  --accent: #2F6F62;
-  --accent-ink: #FFFFFF;
-  --accent-soft: #E1EEE9;
-  --warm: #B96A2C;
-  --warm-soft: #F3E3D2;
-  --danger: #A6402F;
-  --danger-soft: #F4DFDA;
-  --radius: 6px;
-  --shadow: none;
+  --bg: #0A0A0C;
+  --surface: #17171B;
+  --surface-2: #1F1F24;
+  --ink: #F6F5F1;
+  --ink-soft: #A6A6AD;
+  --line: #303036;
+  --accent: #FFC845;
+  --accent-ink: #14140A;
+  --accent-soft: #3B2E10;
+  --warm: #FF8F66;
+  --warm-soft: #3A2418;
+  --danger: #FF7A7A;
+  --danger-soft: #3A1D1D;
+  --teal: #6FD3C7;
+  --teal-soft: #12302C;
+  --radius: 8px;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #171D1A;
-    --surface: #212925;
-    --surface-2: #1B221E;
-    --ink: #ECE9E0;
-    --ink-soft: #A5AC9F;
-    --line: #37413B;
-    --accent: #59A895;
-    --accent-ink: #0F1613;
-    --accent-soft: #223530;
-    --warm: #D89257;
-    --warm-soft: #3A2D1E;
-    --danger: #D98B7A;
-    --danger-soft: #3A241F;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #171D1A;
-  --surface: #212925;
-  --surface-2: #1B221E;
-  --ink: #ECE9E0;
-  --ink-soft: #A5AC9F;
-  --line: #37413B;
-  --accent: #59A895;
-  --accent-ink: #0F1613;
-  --accent-soft: #223530;
-  --warm: #D89257;
-  --warm-soft: #3A2D1E;
-  --danger: #D98B7A;
-  --danger-soft: #3A241F;
-}
-
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
   background: var(--bg);
   color: var(--ink);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 17px;
+  line-height: 1.55;
   min-height: 100vh;
 }
-.wrap {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 28px 20px 80px;
-}
+.wrap { max-width: 1040px; margin: 0 auto; padding: 30px 22px 90px; }
 header.top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  border-bottom: 2px solid var(--ink);
-  padding-bottom: 14px;
-  margin-bottom: 22px;
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  border-bottom: 3px solid var(--ink);
+  padding-bottom: 16px; margin-bottom: 26px;
 }
 h1 {
   font-family: 'Zilla Slab', Georgia, serif;
-  font-weight: 700;
-  font-size: 26px;
-  margin: 0;
-  letter-spacing: -0.01em;
+  font-weight: 700; font-size: 32px; margin: 0; letter-spacing: -0.01em;
 }
-.subtitle {
-  color: var(--ink-soft);
-  font-size: 13px;
-  margin-top: 2px;
-}
+.subtitle { color: var(--ink-soft); font-size: 15px; margin-top: 4px; }
 nav.tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 22px;
-  border-bottom: 1px solid var(--line);
-  overflow-x: auto;
+  display: flex; gap: 4px; margin-bottom: 26px;
+  border-bottom: 1px solid var(--line); overflow-x: auto;
 }
 nav.tabs button {
-  background: none;
-  border: none;
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink-soft);
-  padding: 10px 14px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  white-space: nowrap;
+  background: none; border: none; font-family: 'Inter', sans-serif;
+  font-size: 16px; font-weight: 700; color: var(--ink-soft);
+  padding: 12px 16px; cursor: pointer;
+  border-bottom: 3px solid transparent; white-space: nowrap;
 }
-nav.tabs button.active {
-  color: var(--ink);
-  border-bottom-color: var(--accent);
-}
+nav.tabs button.active { color: var(--ink); border-bottom-color: var(--accent); }
 .panel { display: none; }
 .panel.active { display: block; }
 
 section.card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 18px 20px;
-  margin-bottom: 16px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 22px 24px; margin-bottom: 18px;
 }
 section.card h2 {
   font-family: 'Zilla Slab', Georgia, serif;
-  font-size: 17px;
-  font-weight: 600;
-  margin: 0 0 4px;
+  font-size: 21px; font-weight: 600; margin: 0 0 5px;
 }
-section.card p.hint {
-  color: var(--ink-soft);
-  font-size: 13px;
-  margin: 0 0 14px;
-}
-.row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
+section.card p.hint { color: var(--ink-soft); font-size: 14.5px; margin: 0 0 16px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
 input[type=text], input[type=number], select {
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--ink);
+  font-family: 'Inter', sans-serif; font-size: 15.5px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 5px;
+  background: var(--surface-2); color: var(--ink);
 }
 input[type=text]:focus, input[type=number]:focus, select:focus, button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: 2px solid var(--accent); outline-offset: 1px;
 }
 button {
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  font-size: 13.5px;
-  padding: 8px 14px;
-  border-radius: 4px;
-  border: 1px solid var(--ink);
-  background: var(--ink);
-  color: var(--bg);
-  cursor: pointer;
+  font-family: 'Inter', sans-serif; font-weight: 700; font-size: 15px;
+  padding: 11px 18px; border-radius: 6px; border: 1px solid var(--ink);
+  background: var(--ink); color: var(--bg); cursor: pointer;
 }
-button.secondary {
-  background: var(--surface);
-  color: var(--ink);
-  border: 1px solid var(--line);
-}
-button.accent {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-}
-button.ghost {
-  background: none;
-  border: 1px solid var(--line);
-  color: var(--ink-soft);
-  font-weight: 500;
-  padding: 5px 10px;
-  font-size: 12.5px;
-}
-button.danger-ghost {
-  background: none;
-  border: 1px solid var(--danger);
-  color: var(--danger);
-  padding: 5px 10px;
-  font-size: 12.5px;
-  font-weight: 500;
-}
-button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.secondary { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+button.accent { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.ghost { background: none; border: 1px solid var(--line); color: var(--ink-soft); font-weight: 600; padding: 7px 12px; font-size: 14px; }
+button.danger-ghost { background: none; border: 1px solid var(--danger); color: var(--danger); padding: 7px 12px; font-size: 14px; font-weight: 600; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 table { width: 100%; border-collapse: collapse; }
-th {
-  text-align: left;
-  font-size: 12px;
-  color: var(--ink-soft);
-  font-weight: 600;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--line);
-}
-td {
-  padding: 8px;
-  border-bottom: 1px solid var(--line);
-  font-size: 14px;
-  vertical-align: middle;
-}
+th { text-align: left; font-size: 13px; color: var(--ink-soft); font-weight: 700; padding: 8px; border-bottom: 1px solid var(--line); }
+td { padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 15.5px; vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
 .num { font-variant-numeric: tabular-nums; }
-
-.roster-name { font-weight: 600; }
+.roster-name { font-weight: 700; }
 .weight-pill {
-  display: inline-block;
-  background: var(--accent-soft);
-  color: var(--accent);
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 12.5px;
-  font-weight: 600;
+  display: inline-block; background: var(--accent-soft); color: var(--accent);
+  border-radius: 20px; padding: 3px 12px; font-size: 13.5px; font-weight: 700;
 }
+.pos-history { color: var(--ink-soft); font-size: 13.5px; }
 
-.tier-block {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  margin-bottom: 14px;
-  overflow: hidden;
-}
+.tier-block { border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
 .tier-head {
-  background: var(--surface-2);
-  padding: 10px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  background: var(--surface-2); padding: 12px 16px;
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
 }
-.tier-head .name {
-  font-weight: 700;
-  font-size: 14px;
-}
-.tier-head .desc {
-  font-size: 12.5px;
-  color: var(--ink-soft);
-}
-.tier-body { padding: 12px 14px; }
-.shift-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
+.tier-head .name { font-weight: 800; font-size: 15.5px; }
+.tier-head .desc { font-size: 13.5px; color: var(--ink-soft); }
+.tier-body { padding: 14px 16px; }
+.shift-line { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
 .shift-line input[type=text] { flex: 1; }
-.badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 3px;
-  letter-spacing: 0.01em;
-}
+.badge { display: inline-block; font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.01em; }
 .badge.tier1 { background: var(--accent-soft); color: var(--accent); }
 .badge.tier2 { background: var(--warm-soft); color: var(--warm); }
-.badge.tier3 { background: var(--danger-soft); color: var(--danger); }
+.badge.tier3 { background: var(--teal-soft); color: var(--teal); }
 .badge.tier4 { background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--line); }
 
-.result-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--line);
-}
+.result-row { display: flex; align-items: flex-start; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .result-row:last-child { border-bottom: none; }
-.rank-num {
-  font-family: 'Zilla Slab', serif;
-  font-weight: 700;
-  font-size: 20px;
-  color: var(--ink-soft);
-  width: 30px;
-  flex-shrink: 0;
-  text-align: right;
-}
+.rank-num { font-family: 'Zilla Slab', serif; font-weight: 800; font-size: 24px; color: var(--ink-soft); width: 36px; flex-shrink: 0; text-align: right; }
 .result-main { flex: 1; min-width: 0; }
-.shift-name { font-weight: 600; font-size: 14.5px; }
-.assign-line { margin-top: 3px; font-size: 13.5px; color: var(--ink-soft); }
-.assign-line .who { color: var(--ink); font-weight: 600; }
-.swap-note { color: var(--warm); font-weight: 600; }
-.result-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.shift-name { font-weight: 700; font-size: 16.5px; }
+.assign-line { margin-top: 4px; font-size: 15px; color: var(--ink-soft); }
+.assign-line .who { color: var(--ink); font-weight: 700; }
+.swap-note { color: var(--warm); font-weight: 700; }
+.result-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.pick-select, .pick-input { margin-top: 10px; width: 100%; max-width: 320px; }
 
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--ink-soft);
-}
-.empty-state .big { font-size: 15px; margin-bottom: 6px; color: var(--ink); font-weight: 600;}
+.empty-state { text-align: center; padding: 44px 20px; color: var(--ink-soft); }
+.empty-state .big { font-size: 16px; margin-bottom: 6px; color: var(--ink); font-weight: 700; }
 
-.week-entry {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  margin-bottom: 10px;
-}
-.week-entry .date-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 600;
-  font-size: 13.5px;
-}
-.week-entry .order-list {
-  margin-top: 8px;
-  font-size: 13px;
-  color: var(--ink-soft);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.week-entry .order-list span {
-  background: var(--surface-2);
-  padding: 2px 8px;
-  border-radius: 3px;
-}
+.week-entry { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; }
+.week-entry .date-line { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 15px; }
+.week-entry .order-list { margin-top: 9px; font-size: 14px; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 7px; }
+.week-entry .order-list span { background: var(--surface-2); padding: 3px 9px; border-radius: 4px; }
 
-.modal-backdrop {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.4);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 50;
-  padding: 20px;
-}
-.modal {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 20px;
-  max-width: 380px;
-  width: 100%;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-.modal h3 { margin: 0 0 10px; font-family: 'Zilla Slab', serif; font-size: 16px; }
-.modal .cand {
-  display: block; width: 100%; text-align: left;
-  padding: 9px 10px; margin-bottom: 6px;
-  border-radius: 4px;
-}
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.modal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto; }
+.modal h3 { margin: 0 0 12px; font-family: 'Zilla Slab', serif; font-size: 18px; }
+.modal .cand { display: block; width: 100%; text-align: left; padding: 11px 12px; margin-bottom: 7px; border-radius: 5px; font-size: 15.5px; }
 
 .toast {
-  position: fixed;
-  bottom: 20px; left: 50%;
-  transform: translateX(-50%);
-  background: var(--ink);
-  color: var(--bg);
-  padding: 10px 18px;
-  border-radius: 6px;
-  font-size: 13.5px;
-  font-weight: 600;
-  z-index: 60;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s;
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  background: var(--accent); color: var(--accent-ink); padding: 12px 20px;
+  border-radius: 7px; font-size: 15px; font-weight: 700; z-index: 60;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
 }
 .toast.show { opacity: 1; }
 
-.stage-card {
-  border: 1px dashed var(--line);
-  border-radius: var(--radius);
-  padding: 22px 18px;
-  text-align: center;
-  margin-top: 6px;
-  background: var(--surface-2);
-}
-.stage-label {
-  font-size: 11.5px;
-  color: var(--ink-soft);
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-.stage-shift {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 14px;
-}
+.stage-card { border: 2px dashed var(--line); border-radius: var(--radius); padding: 36px 20px; text-align: center; margin-top: 8px; background: var(--surface-2); }
+.stage-label { font-size: 13px; color: var(--ink-soft); font-weight: 700; margin-bottom: 6px; }
+.stage-shift { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
 .stage-name {
-  font-family: 'Zilla Slab', serif;
-  font-size: 30px;
-  font-weight: 700;
-  min-height: 42px;
-  margin-bottom: 16px;
-  color: var(--ink-soft);
+  font-family: 'Zilla Slab', serif; font-weight: 800;
+  font-size: clamp(40px, 7vw, 84px); line-height: 1.05;
+  min-height: 1.1em; margin-bottom: 22px; color: var(--ink-soft);
   transition: transform 0.15s ease;
 }
-.stage-name.landed {
-  color: var(--accent);
-  transform: scale(1.12);
-}
-.done-msg {
-  text-align: center;
-  padding: 10px 0 2px;
-  color: var(--ink-soft);
-  font-size: 13.5px;
-}
+.stage-name.landed { color: var(--accent); transform: scale(1.08); }
+.done-msg { text-align: center; padding: 12px 0 2px; color: var(--ink-soft); font-size: 15px; }
 
-.foot-note {
-  font-size: 12.5px;
-  color: var(--ink-soft);
-  margin-top: 4px;
-}
-.checkbox-row { display: flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--ink-soft); }
+.foot-note { font-size: 13.5px; color: var(--ink-soft); margin-top: 6px; }
+.checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--ink-soft); }
+.settings-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.settings-row label { font-size: 14.5px; color: var(--ink-soft); font-weight: 600; }
 
 @media (max-width: 560px) {
   .result-row { flex-wrap: wrap; }
-  .rank-num { width: 22px; font-size: 17px; }
+  .rank-num { width: 26px; font-size: 19px; }
 }
 </style>
 </head>
@@ -424,15 +179,15 @@ tr:last-child td { border-bottom: none; }
 <div class="wrap">
   <header class="top">
     <div>
-      <h1>Building Manager Shift Draw</h1>
-      <div class="subtitle">Weighted wheel — keeps the same person from getting the worst shift two weeks running</div>
+      <h1>Building Manager Draft Order</h1>
+      <div class="subtitle">Sets who picks first — building &amp; shift time are chosen live, not assigned by this tool</div>
     </div>
   </header>
 
   <nav class="tabs">
     <button class="tab-btn active" data-tab="roster">Roster</button>
-    <button class="tab-btn" data-tab="shifts">This Week's Shifts</button>
-    <button class="tab-btn" data-tab="draw">Draw &amp; Results</button>
+    <button class="tab-btn" data-tab="shifts">This Week's Draft</button>
+    <button class="tab-btn" data-tab="draw">Draw &amp; Reveal</button>
     <button class="tab-btn" data-tab="history">History</button>
   </nav>
 
@@ -440,15 +195,22 @@ tr:last-child td { border-bottom: none; }
   <div class="panel active" id="panel-roster">
     <section class="card">
       <h2>Building managers</h2>
-      <p class="hint">Weight is based on where each person landed in last week's draw — later in the order means a higher weight, so they're more likely to be drawn early this time.</p>
+      <p class="hint">Weight is the average of where someone landed over their last few draws — later positions score higher, so they're more likely drawn early this time.</p>
+
+      <div class="settings-row">
+        <div class="row">
+          <label for="lookback-weeks">Weeks of history to weight by</label>
+          <input type="number" id="lookback-weeks" min="1" max="12" style="width:64px;">
+        </div>
+        <button class="danger-ghost" onclick="resetHistory()">Reset history (new season)</button>
+      </div>
+
       <div class="row" style="margin-bottom:14px;">
         <input type="text" id="new-name" placeholder="Add a name">
         <button class="accent" onclick="addManager()">Add</button>
       </div>
       <table id="roster-table">
-        <thead>
-          <tr><th>Name</th><th>Last week's position</th><th>Weight this week</th><th></th></tr>
-        </thead>
+        <thead><tr><th>Name</th><th>Recent positions</th><th>Weight this week</th><th></th></tr></thead>
         <tbody id="roster-body"></tbody>
       </table>
       <div class="empty-state" id="roster-empty" style="display:none;">
@@ -458,20 +220,20 @@ tr:last-child td { border-bottom: none; }
     </section>
   </div>
 
-  <!-- SHIFTS -->
+  <!-- SHIFTS / DRAFT SETUP -->
   <div class="panel" id="panel-shifts">
     <section class="card">
       <h2>Week of</h2>
-      <input type="text" id="week-label" placeholder="e.g. Oct 3–5" style="width:220px;">
+      <input type="text" id="week-label" placeholder="e.g. Oct 3–5" style="width:240px;">
     </section>
 
     <div class="tier-block">
       <div class="tier-head">
         <div>
-          <div class="name">1 · Weekend shifts (first 8, fixed)</div>
-          <div class="desc">Fri MU/US Close, Sat MU/US Open &amp; Close, Sun MU/US Open — swap-eligible per Rule 2</div>
+          <div class="name">1 · Weekend (first 8, fixed)</div>
+          <div class="desc">Reference list of the fixed slots — shown as pick options during the draw, not auto-assigned</div>
         </div>
-        <span class="badge tier1">Drawn first</span>
+        <span class="badge tier1">Drafted first</span>
       </div>
       <div class="tier-body" id="tier1-list"></div>
     </div>
@@ -479,32 +241,36 @@ tr:last-child td { border-bottom: none; }
     <div class="tier-block">
       <div class="tier-head">
         <div>
-          <div class="name">1b · Extra swap-eligible shifts (positions 9–10)</div>
-          <div class="desc">Optional — anything you want covered by Rule 2's swap window</div>
+          <div class="name">1b · Extra swap-eligible slots (positions 9–10)</div>
+          <div class="desc">Optional — anything else you want covered inside Rule 2's swap window</div>
         </div>
       </div>
       <div class="tier-body">
         <div id="tier1b-list"></div>
-        <button class="secondary" onclick="addShift('tier1b')" style="margin-top:6px;">+ Add shift</button>
+        <button class="secondary" onclick="addShift('tier1b')" style="margin-top:8px;">+ Add slot</button>
       </div>
     </div>
 
     <div class="tier-block">
       <div class="tier-head">
         <div>
-          <div class="name">2 · Badger Bash</div>
-          <div class="desc">Needs 4 managers total — volunteers fill first, wheel fills the rest</div>
+          <div class="name">2 · Special event</div>
+          <div class="desc">Badger Bash, Idea Fest Support, or whatever comes up — volunteers fill first, the draft only fills what's left</div>
         </div>
-        <label class="checkbox-row"><input type="checkbox" id="bash-active"> Happening this week</label>
+        <label class="checkbox-row"><input type="checkbox" id="event-active"> Happening this week</label>
       </div>
-      <div class="tier-body" id="bash-body" style="display:none;">
-        <div class="row" style="margin-bottom:10px;">
-          <label style="font-size:13px;color:var(--ink-soft);">Slots needed</label>
-          <input type="number" id="bash-count" value="4" min="1" max="12" style="width:60px;">
+      <div class="tier-body" id="event-body" style="display:none;">
+        <div class="row" style="margin-bottom:12px;">
+          <label style="font-size:14.5px;color:var(--ink-soft);">Event name</label>
+          <input type="text" id="event-name" placeholder="e.g. Badger Bash" style="min-width:220px;">
         </div>
-        <p class="hint" style="margin-bottom:8px;">Volunteers (already signed up) — the wheel only fills what's left:</p>
-        <div id="bash-volunteers"></div>
-        <button class="secondary" onclick="addBashVolunteer()">+ Add volunteer</button>
+        <div class="row" style="margin-bottom:12px;">
+          <label style="font-size:14.5px;color:var(--ink-soft);">Slots needed</label>
+          <input type="number" id="event-count" value="4" min="1" max="12" style="width:70px;">
+        </div>
+        <p class="hint" style="margin-bottom:10px;">Volunteers (already signed up):</p>
+        <div id="event-volunteers"></div>
+        <button class="secondary" onclick="addEventVolunteer()">+ Add volunteer</button>
       </div>
     </div>
 
@@ -512,12 +278,15 @@ tr:last-child td { border-bottom: none; }
       <div class="tier-head">
         <div>
           <div class="name">3 · Red Gym</div>
-          <div class="desc">Covered before SAC</div>
+          <div class="desc">Drafted before SAC — pick order only, building/time chosen live</div>
         </div>
       </div>
       <div class="tier-body">
-        <div id="redgym-list"></div>
-        <button class="secondary" onclick="addShift('redgym')" style="margin-top:6px;">+ Add shift</button>
+        <div class="row" style="gap:20px;">
+          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Fri</label><input type="number" id="redgym-fri" min="0" max="20" style="width:64px;"></div>
+          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Sat</label><input type="number" id="redgym-sat" min="0" max="20" style="width:64px;"></div>
+          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Sun</label><input type="number" id="redgym-sun" min="0" max="20" style="width:64px;"></div>
+        </div>
       </div>
     </div>
 
@@ -525,18 +294,21 @@ tr:last-child td { border-bottom: none; }
       <div class="tier-head">
         <div>
           <div class="name">4 · SAC</div>
-          <div class="desc">Covered last — mark a shift splittable if two people may share it</div>
+          <div class="desc">Drafted last — any pick can be split between two people, decided live</div>
         </div>
-        <span class="badge tier4">Drawn last</span>
+        <span class="badge tier4">Drafted last</span>
       </div>
       <div class="tier-body">
-        <div id="sac-list"></div>
-        <button class="secondary" onclick="addShift('sac')" style="margin-top:6px;">+ Add shift</button>
+        <div class="row" style="gap:20px;">
+          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Fri</label><input type="number" id="sac-fri" min="0" max="20" style="width:64px;"></div>
+          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Sat</label><input type="number" id="sac-sat" min="0" max="20" style="width:64px;"></div>
+          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Sun</label><input type="number" id="sac-sun" min="0" max="20" style="width:64px;"></div>
+        </div>
       </div>
     </div>
 
-    <div class="row" style="margin-top:6px;">
-      <label class="checkbox-row"><input type="checkbox" id="no-double-book" checked> Don't assign the same person twice this week</label>
+    <div class="row" style="margin-top:8px;">
+      <label class="checkbox-row"><input type="checkbox" id="no-double-book" checked> Don't draft the same person twice this week</label>
     </div>
   </div>
 
@@ -545,14 +317,14 @@ tr:last-child td { border-bottom: none; }
     <section class="card">
       <div class="row" style="justify-content:space-between;">
         <div>
-          <h2 style="margin-bottom:2px;">Run the draw</h2>
-          <p class="hint" style="margin-bottom:0;">Draws Weekend → Badger Bash → Red Gym → SAC, in that order, weighted by last week's position.</p>
+          <h2 style="margin-bottom:3px;">Run the draft</h2>
+          <p class="hint" style="margin-bottom:0;">Orders Weekend → Badger Bash → Red Gym → SAC, weighted by recent history. Each person picks their own building &amp; time live.</p>
         </div>
-        <button class="accent" onclick="runDraw()">Run the wheel</button>
+        <button class="accent" onclick="runDraw()">Run the draft</button>
       </div>
     </section>
     <section class="card" id="results-card" style="display:none;">
-      <div class="row" style="justify-content:space-between; margin-bottom:6px;">
+      <div class="row" style="justify-content:space-between; margin-bottom:8px;">
         <h2 style="margin:0;">Results</h2>
         <div class="row">
           <button class="ghost" onclick="skipToFull()">Skip to full results</button>
@@ -560,7 +332,7 @@ tr:last-child td { border-bottom: none; }
           <button class="accent" id="finalize-btn" onclick="finalizeWeek()" disabled>Finalize &amp; save to history</button>
         </div>
       </div>
-      <p class="hint">The order is already locked in — each <strong>Draw!</strong> just reveals the next name for the room. Use <strong>Swap</strong> on any of the first 10 shifts to hand it to a volunteer who hasn't appeared on the wheel yet — the original name still counts for next week's weighting.</p>
+      <p class="hint">The order's already locked in — <strong>Draw!</strong> just reveals it. <strong>Swap</strong> is only offered on names that haven't been revealed yet — exactly as Rule 2 intends.</p>
       <div id="revealed-list"></div>
       <div id="reveal-stage"></div>
     </section>
@@ -570,11 +342,11 @@ tr:last-child td { border-bottom: none; }
   <div class="panel" id="panel-history">
     <section class="card">
       <h2>Past weeks</h2>
-      <p class="hint">The saved order from each finalized week is what sets next week's weights.</p>
+      <p class="hint">Each finalized week's order feeds the rolling weight average above.</p>
       <div id="history-list"></div>
       <div class="empty-state" id="history-empty" style="display:none;">
         <div class="big">No finalized weeks yet</div>
-        Run a draw and finalize it to start building history.
+        Run a draft and finalize it to start building history.
       </div>
     </section>
   </div>
@@ -585,12 +357,10 @@ tr:last-child td { border-bottom: none; }
 
 <script>
 // ---------- storage ----------
-const STORE_KEY = 'bm-shift-wheel-v1';
+const STORE_KEY = 'bm-shift-wheel-v2';
 function loadState() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) { console.warn('load failed', e); }
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); }
+  catch (e) { console.warn('load failed', e); }
   return null;
 }
 function saveState() {
@@ -607,30 +377,39 @@ const defaultTier1 = [
 
 function freshState() {
   return {
-    managers: [], // {id, name, lastRank: number|null, override: number|null}
-    history: [],  // {id, date, label, order: [name,...]}
+    managers: [],
+    history: [],
+    settings: { lookbackWeeks: 3 },
     week: {
       label: '',
-      tier1: defaultTier1.map(t => ({id: uid(), label: t})),
+      tier1: defaultTier1.map(t => ({ id: uid(), label: t })),
       tier1b: [],
-      redgym: [],
-      sac: [],
-      bash: { active: false, count: 4, volunteers: [] },
+      redgym: { fri: 0, sat: 0, sun: 0 },
+      sac: { fri: 0, sat: 0, sun: 0 },
+      event: { name: 'Badger Bash', active: false, count: 4, volunteers: [] },
       noDoubleBook: true
     },
-    results: null // computed on draw
+    results: null
   };
 }
 
 let state = loadState() || freshState();
-if (!state.week) state.week = freshState().week;
+// --- migrations from earlier versions ---
+if (!state.settings) state.settings = { lookbackWeeks: 3 };
+if (Array.isArray(state.week.redgym) || (state.week.redgym && 'count' in state.week.redgym)) state.week.redgym = { fri: 0, sat: 0, sun: 0 };
+if (Array.isArray(state.week.sac) || (state.week.sac && 'count' in state.week.sac)) state.week.sac = { fri: 0, sat: 0, sun: 0 };
+if (state.week.bash && !state.week.event) {
+  state.week.event = { name: 'Badger Bash', active: state.week.bash.active, count: state.week.bash.count, volunteers: state.week.bash.volunteers };
+  delete state.week.bash;
+}
+if (!state.week.event) state.week.event = { name: 'Badger Bash', active: false, count: 4, volunteers: [] };
+if (state.managers) state.managers.forEach(m => { delete m.lastRank; });
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
 function toast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
+  t.textContent = msg; t.classList.add('show');
   clearTimeout(toast._h);
   toast._h = setTimeout(() => t.classList.remove('show'), 2200);
 }
@@ -645,26 +424,38 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-// ---------- weighting ----------
+// ---------- weighting (rolling average over N most recent weeks) ----------
+function recentPositions(m) {
+  const lookback = state.settings.lookbackWeeks || 1;
+  return state.history.slice(0, lookback).map(w => {
+    const idx = w.order.indexOf(m.name);
+    return idx === -1 ? null : idx + 1;
+  });
+}
 function computeWeight(m) {
   if (m.override !== null && m.override !== undefined && m.override !== '') return Number(m.override);
-  if (m.lastRank) return m.lastRank;
-  // no history: default to the middle of the current roster's spread
-  const n = state.managers.length || 1;
-  return Math.ceil((n + 1) / 2);
+  const positions = recentPositions(m).filter(p => p !== null);
+  if (positions.length === 0) {
+    const n = state.managers.length || 1;
+    return Math.ceil((n + 1) / 2);
+  }
+  const avg = positions.reduce((a, b) => a + b, 0) / positions.length;
+  return Math.round(avg * 10) / 10;
 }
 
 // ---------- roster rendering ----------
 function renderRoster() {
+  document.getElementById('lookback-weeks').value = state.settings.lookbackWeeks;
   const body = document.getElementById('roster-body');
   body.innerHTML = '';
   document.getElementById('roster-empty').style.display = state.managers.length ? 'none' : 'block';
   state.managers.forEach(m => {
     const tr = document.createElement('tr');
     const w = computeWeight(m);
+    const positions = recentPositions(m).map(p => p === null ? '—' : ('#' + p)).join(', ');
     tr.innerHTML = `
       <td class="roster-name">${escapeHtml(m.name)}</td>
-      <td class="num">${m.lastRank ? '#' + m.lastRank + ' last time' : '<span style="color:var(--ink-soft)">no history</span>'}</td>
+      <td class="pos-history">${positions || '<span style="color:var(--ink-soft)">no history</span>'}</td>
       <td><span class="weight-pill">weight ${w}</span></td>
       <td style="text-align:right;">
         <button class="ghost" onclick="overrideWeight('${m.id}')">Override</button>
@@ -673,12 +464,11 @@ function renderRoster() {
     body.appendChild(tr);
   });
 }
-
 function addManager() {
   const input = document.getElementById('new-name');
   const name = input.value.trim();
   if (!name) return;
-  state.managers.push({ id: uid(), name, lastRank: null, override: null });
+  state.managers.push({ id: uid(), name, override: null });
   input.value = '';
   saveState(); renderRoster();
 }
@@ -693,23 +483,31 @@ function overrideWeight(id) {
   m.override = val.trim() === '' ? null : Number(val);
   saveState(); renderRoster();
 }
+function resetHistory() {
+  if (!confirm("Clear all draw history? Everyone's weight goes back to neutral — use this to start a fresh season/roster.")) return;
+  state.history = [];
+  saveState(); renderRoster(); renderHistory();
+  toast('History cleared — weights reset to neutral');
+}
+document.getElementById('lookback-weeks').addEventListener('change', e => {
+  state.settings.lookbackWeeks = Math.max(1, Number(e.target.value) || 1);
+  saveState(); renderRoster();
+});
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// ---------- shift list rendering (generic) ----------
+// ---------- shift/slot setup rendering ----------
 function renderShiftList(containerId, arrKey) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
-  state.week[arrKey].forEach((shift, idx) => {
+  state.week[arrKey].forEach(shift => {
     const row = document.createElement('div');
     row.className = 'shift-line';
     row.innerHTML = `
       <input type="text" value="${escapeHtml(shift.label)}" onchange="updateShiftLabel('${arrKey}','${shift.id}', this.value)">
-      ${arrKey === 'sac' ? `<label class="checkbox-row" style="font-size:12px;"><input type="checkbox" ${shift.splittable ? 'checked' : ''} onchange="toggleSplittable('${shift.id}', this.checked)"> splittable</label>` : ''}
-      <button class="danger-ghost" onclick="removeShift('${arrKey}','${shift.id}')">Remove</button>
-    `;
+      <button class="danger-ghost" onclick="removeShift('${arrKey}','${shift.id}')">Remove</button>`;
     container.appendChild(row);
   });
 }
@@ -718,70 +516,72 @@ function updateShiftLabel(arrKey, id, val) {
   if (s) s.label = val;
   saveState();
 }
-function toggleSplittable(id, val) {
-  const s = state.week.sac.find(x => x.id === id);
-  if (s) s.splittable = val;
-  saveState();
-}
 function removeShift(arrKey, id) {
   state.week[arrKey] = state.week[arrKey].filter(x => x.id !== id);
   saveState(); renderAllShiftLists();
 }
 function addShift(arrKey) {
-  const label = prompt('Shift name (e.g. "Mon US Close")');
+  const label = prompt('Slot name (e.g. "Mon US Close")');
   if (!label || !label.trim()) return;
-  state.week[arrKey].push({ id: uid(), label: label.trim(), splittable: false });
+  state.week[arrKey].push({ id: uid(), label: label.trim() });
   saveState(); renderAllShiftLists();
 }
 function renderAllShiftLists() {
   renderShiftList('tier1-list', 'tier1');
   renderShiftList('tier1b-list', 'tier1b');
-  renderShiftList('redgym-list', 'redgym');
-  renderShiftList('sac-list', 'sac');
   document.getElementById('week-label').value = state.week.label || '';
-  document.getElementById('bash-active').checked = state.week.bash.active;
-  document.getElementById('bash-body').style.display = state.week.bash.active ? 'block' : 'none';
-  document.getElementById('bash-count').value = state.week.bash.count;
+  document.getElementById('event-active').checked = state.week.event.active;
+  document.getElementById('event-body').style.display = state.week.event.active ? 'block' : 'none';
+  document.getElementById('event-name').value = state.week.event.name;
+  document.getElementById('event-count').value = state.week.event.count;
+  document.getElementById('redgym-fri').value = state.week.redgym.fri;
+  document.getElementById('redgym-sat').value = state.week.redgym.sat;
+  document.getElementById('redgym-sun').value = state.week.redgym.sun;
+  document.getElementById('sac-fri').value = state.week.sac.fri;
+  document.getElementById('sac-sat').value = state.week.sac.sat;
+  document.getElementById('sac-sun').value = state.week.sac.sun;
   document.getElementById('no-double-book').checked = state.week.noDoubleBook;
-  renderBashVolunteers();
+  renderEventVolunteers();
 }
-function renderBashVolunteers() {
-  const c = document.getElementById('bash-volunteers');
+function renderEventVolunteers() {
+  const c = document.getElementById('event-volunteers');
   c.innerHTML = '';
-  state.week.bash.volunteers.forEach((v, i) => {
+  state.week.event.volunteers.forEach((v, i) => {
     const row = document.createElement('div');
     row.className = 'shift-line';
     row.innerHTML = `
-      <input type="text" value="${escapeHtml(v)}" onchange="updateBashVolunteer(${i}, this.value)">
-      <button class="danger-ghost" onclick="removeBashVolunteer(${i})">Remove</button>`;
+      <input type="text" value="${escapeHtml(v)}" onchange="updateEventVolunteer(${i}, this.value)">
+      <button class="danger-ghost" onclick="removeEventVolunteer(${i})">Remove</button>`;
     c.appendChild(row);
   });
 }
-function addBashVolunteer() {
+function addEventVolunteer() {
   const name = prompt('Volunteer name');
   if (!name || !name.trim()) return;
-  state.week.bash.volunteers.push(name.trim());
-  saveState(); renderBashVolunteers();
+  state.week.event.volunteers.push(name.trim());
+  saveState(); renderEventVolunteers();
 }
-function updateBashVolunteer(i, val) { state.week.bash.volunteers[i] = val; saveState(); }
-function removeBashVolunteer(i) { state.week.bash.volunteers.splice(i, 1); saveState(); renderBashVolunteers(); }
+function updateEventVolunteer(i, val) { state.week.event.volunteers[i] = val; saveState(); }
+function removeEventVolunteer(i) { state.week.event.volunteers.splice(i, 1); saveState(); renderEventVolunteers(); }
 
 document.getElementById('week-label').addEventListener('input', e => { state.week.label = e.target.value; saveState(); });
-document.getElementById('bash-active').addEventListener('change', e => {
-  state.week.bash.active = e.target.checked;
-  document.getElementById('bash-body').style.display = e.target.checked ? 'block' : 'none';
+document.getElementById('event-active').addEventListener('change', e => {
+  state.week.event.active = e.target.checked;
+  document.getElementById('event-body').style.display = e.target.checked ? 'block' : 'none';
   saveState();
 });
-document.getElementById('bash-count').addEventListener('change', e => { state.week.bash.count = Number(e.target.value) || 4; saveState(); });
+document.getElementById('event-name').addEventListener('change', e => { state.week.event.name = e.target.value.trim() || 'Special Event'; saveState(); });
+document.getElementById('event-count').addEventListener('change', e => { state.week.event.count = Number(e.target.value) || 4; saveState(); });
+['fri','sat','sun'].forEach(day => {
+  document.getElementById('redgym-' + day).addEventListener('change', e => { state.week.redgym[day] = Math.max(0, Number(e.target.value) || 0); saveState(); });
+  document.getElementById('sac-' + day).addEventListener('change', e => { state.week.sac[day] = Math.max(0, Number(e.target.value) || 0); saveState(); });
+});
 document.getElementById('no-double-book').addEventListener('change', e => { state.week.noDoubleBook = e.target.checked; saveState(); });
 
-// ---------- weighted draw engine ----------
+// ---------- weighted draft engine ----------
 function weightedPickAndRemove(pool) {
   const total = pool.reduce((s, m) => s + computeWeight(m), 0);
-  if (total <= 0) {
-    const idx = Math.floor(Math.random() * pool.length);
-    return pool.splice(idx, 1)[0];
-  }
+  if (total <= 0) { const idx = Math.floor(Math.random() * pool.length); return pool.splice(idx, 1)[0]; }
   let r = Math.random() * total;
   for (let i = 0; i < pool.length; i++) {
     r -= computeWeight(pool[i]);
@@ -791,16 +591,11 @@ function weightedPickAndRemove(pool) {
 }
 
 function runDraw() {
-  if (state.managers.length === 0) {
-    toast('Add building managers to the roster first');
-    return;
-  }
+  if (state.managers.length === 0) { toast('Add building managers to the roster first'); return; }
   const noDouble = state.week.noDoubleBook;
-  let pool = state.managers.slice(); // working pool, mutated as we draw
-  const drawOrder = []; // names in the order actually drawn (for weighting)
-  const results = []; // {tier, shiftLabel, assignedName, workingName, swapped, id, splitOf}
-
-  function freshPoolCopy() { return state.managers.slice(); }
+  let pool = state.managers.slice();
+  const drawOrder = [];
+  const results = [];
 
   function drawOne(availablePool) {
     if (availablePool.length === 0) return null;
@@ -810,23 +605,22 @@ function runDraw() {
     return picked;
   }
 
-  // Tier 1: weekend (fixed 8) + 1b swap-eligible extras -> combined "first 10" swap window
   const tier1all = [...state.week.tier1, ...state.week.tier1b];
   tier1all.forEach((shift, idx) => {
     const snapshot = pool.map(m => m.name);
     const picked = drawOne(pool);
     results.push({
-      id: uid(), tier: 1, shiftLabel: shift.label,
+      id: uid(), tier: 1, shiftLabel: `Weekend pick ${idx + 1}`,
       assignedName: picked ? picked.name : '— not enough people —',
       workingName: picked ? picked.name : '— not enough people —',
-      swapped: false, swapEligible: idx < 10, candidatePool: snapshot
+      swapped: false, swapEligible: idx < 10, candidatePool: snapshot, pickedOption: null
     });
   });
 
-  // Tier 2: Badger Bash
-  if (state.week.bash.active) {
-    const need = state.week.bash.count;
-    const volunteers = state.week.bash.volunteers.filter(v => v.trim());
+  if (state.week.event.active) {
+    const eventName = state.week.event.name || 'Special Event';
+    const need = state.week.event.count;
+    const volunteers = state.week.event.volunteers.filter(v => v.trim());
     const filled = [];
     volunteers.slice(0, need).forEach(v => filled.push({ name: v, viaVolunteer: true }));
     if (noDouble) pool = pool.filter(m => !volunteers.includes(m.name));
@@ -837,39 +631,46 @@ function runDraw() {
     }
     filled.forEach(f => {
       results.push({
-        id: uid(), tier: 2, shiftLabel: 'Badger Bash' + (f.viaVolunteer ? ' (volunteer)' : ''),
+        id: uid(), tier: 2, shiftLabel: eventName + (f.viaVolunteer ? ' (volunteer)' : ''),
         assignedName: f.name, workingName: f.name, swapped: false, swapEligible: false,
         candidatePool: f.viaVolunteer ? null : f.candidatePool
       });
     });
   }
 
-  // Tier 3: Red Gym
-  state.week.redgym.forEach(shift => {
-    const snapshot = pool.map(m => m.name);
-    const picked = drawOne(pool);
-    results.push({
-      id: uid(), tier: 3, shiftLabel: shift.label,
-      assignedName: picked ? picked.name : '— not enough people —',
-      workingName: picked ? picked.name : '— not enough people —',
-      swapped: false, swapEligible: false, candidatePool: snapshot
-    });
+  const dayLabels = { fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+  ['fri', 'sat', 'sun'].forEach(day => {
+    const n = state.week.redgym[day] || 0;
+    for (let i = 0; i < n; i++) {
+      const snapshot = pool.map(m => m.name);
+      const picked = drawOne(pool);
+      results.push({
+        id: uid(), tier: 3, shiftLabel: `Red Gym — ${dayLabels[day]}`,
+        assignedName: picked ? picked.name : '— not enough people —',
+        workingName: picked ? picked.name : '— not enough people —',
+        swapped: false, swapEligible: false, candidatePool: snapshot, pickedOption: null
+      });
+    }
   });
 
-  // Tier 4: SAC
-  state.week.sac.forEach(shift => {
-    const snapshot = pool.map(m => m.name);
-    const picked = drawOne(pool);
-    results.push({
-      id: uid(), tier: 4, shiftLabel: shift.label,
-      assignedName: picked ? picked.name : '— not enough people —',
-      workingName: picked ? picked.name : '— not enough people —',
-      swapped: false, swapEligible: false, splittable: !!shift.splittable, splitWith: null,
-      candidatePool: snapshot
-    });
+  ['fri', 'sat', 'sun'].forEach(day => {
+    const n = state.week.sac[day] || 0;
+    for (let i = 0; i < n; i++) {
+      const snapshot = pool.map(m => m.name);
+      const picked = drawOne(pool);
+      results.push({
+        id: uid(), tier: 4, shiftLabel: `SAC — ${dayLabels[day]}`,
+        assignedName: picked ? picked.name : '— not enough people —',
+        workingName: picked ? picked.name : '— not enough people —',
+        swapped: false, swapEligible: false, splitWith: null, candidatePool: snapshot, pickedOption: null
+      });
+    }
   });
 
-  state.results = { drawOrder, rows: results, revealedIndex: -1 };
+  state.results = {
+    drawOrder, rows: results, revealedIndex: -1,
+    weekendOptions: tier1all.map(s => s.label)
+  };
   saveState();
   renderResults();
   document.getElementById('results-card').style.display = 'block';
@@ -877,16 +678,20 @@ function runDraw() {
 }
 
 function tierBadge(t) {
-  const map = { 1: ['tier1', 'Weekend'], 2: ['tier2', 'Badger Bash'], 3: ['tier3', 'Red Gym'], 4: ['tier4', 'SAC'] };
+  const map = { 1: ['tier1', 'Weekend'], 2: ['tier2', 'Special Event'], 3: ['tier3', 'Red Gym'], 4: ['tier4', 'SAC'] };
   const [cls, label] = map[t];
   return `<span class="badge ${cls}">${label}</span>`;
 }
 
+// Only names already REVEALED count as "on the wheel" — this is the fix for Rule 2's swap pool.
 function everyoneOnWheelSoFar() {
   if (!state.results) return new Set();
   const s = new Set();
-  state.results.rows.forEach(r => { s.add(r.workingName); s.add(r.assignedName); });
-  if (state.week.bash.active) state.week.bash.volunteers.forEach(v => s.add(v));
+  const idx = state.results.revealedIndex;
+  state.results.rows.forEach((r, i) => { if (i <= idx) { s.add(r.workingName); s.add(r.assignedName); } });
+  if (state.week.noDoubleBook && state.week.event.active) {
+    state.week.event.volunteers.forEach(v => { if (v.trim()) s.add(v.trim()); });
+  }
   return s;
 }
 
@@ -894,20 +699,39 @@ function buildResultRow(r, i) {
   const row = document.createElement('div');
   row.className = 'result-row';
   const swapBtn = r.swapEligible ? `<button class="ghost" onclick="openSwap('${r.id}')">Swap</button>` : '';
-  const splitBtn = (r.tier === 4 && r.splittable) ? `<button class="ghost" onclick="openSplit('${r.id}')">${r.splitWith ? 'Change split' : 'Split shift'}</button>` : '';
+  const splitBtn = (r.tier === 4) ? `<button class="ghost" onclick="openSplit('${r.id}')">${r.splitWith ? 'Change split' : 'Split shift'}</button>` : '';
+
+  let pickerHtml = '';
+  if (r.tier === 1) {
+    const claimed = new Set(state.results.rows.filter(rr => rr.tier === 1 && rr.id !== r.id && rr.pickedOption).map(rr => rr.pickedOption));
+    const options = (state.results.weekendOptions || []).filter(opt => !claimed.has(opt));
+    pickerHtml = `<select class="pick-select" onchange="setPickedOption('${r.id}', this.value)">
+      <option value="">— what did they pick? —</option>
+      ${options.map(opt => `<option value="${escapeHtml(opt)}" ${r.pickedOption === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('')}
+    </select>`;
+  } else if (r.tier === 3 || r.tier === 4) {
+    pickerHtml = `<input type="text" class="pick-input" placeholder="What did they pick? (optional)" value="${escapeHtml(r.pickedOption || '')}" onchange="setPickedOption('${r.id}', this.value)">`;
+  }
+
   row.innerHTML = `
     <div class="rank-num">${i + 1}</div>
     <div class="result-main">
       <div class="shift-name">${escapeHtml(r.shiftLabel)} ${tierBadge(r.tier)}</div>
       <div class="assign-line">
-        Working: <span class="who">${escapeHtml(r.workingName)}</span>
+        Up to pick: <span class="who">${escapeHtml(r.workingName)}</span>
         ${r.swapped ? `<span class="swap-note"> — swapped for ${escapeHtml(r.assignedName)}</span>` : ''}
         ${r.splitWith ? `<span class="swap-note"> — split with ${escapeHtml(r.splitWith)}</span>` : ''}
       </div>
+      ${pickerHtml}
     </div>
     <div class="result-actions">${swapBtn}${splitBtn}</div>
   `;
   return row;
+}
+function setPickedOption(rowId, value) {
+  const row = state.results.rows.find(r => r.id === rowId);
+  row.pickedOption = value || null;
+  saveState(); renderResults();
 }
 
 function renderResults() {
@@ -916,19 +740,17 @@ function renderResults() {
   const stage = document.getElementById('reveal-stage');
   revealedList.innerHTML = '';
   const idx = state.results.revealedIndex;
-  state.results.rows.forEach((r, i) => {
-    if (i <= idx) revealedList.appendChild(buildResultRow(r, i));
-  });
+  state.results.rows.forEach((r, i) => { if (i <= idx) revealedList.appendChild(buildResultRow(r, i)); });
   const finalizeBtn = document.getElementById('finalize-btn');
   if (idx >= state.results.rows.length - 1) {
-    stage.innerHTML = `<div class="done-msg">All shifts drawn — finalize whenever you're ready.</div>`;
+    stage.innerHTML = `<div class="done-msg">Everyone's drafted — finalize whenever you're ready.</div>`;
     if (finalizeBtn) finalizeBtn.disabled = false;
   } else {
     const next = state.results.rows[idx + 1];
     stage.innerHTML = `
       <div class="stage-card">
-        <div class="stage-label">Shift ${idx + 2} of ${state.results.rows.length}</div>
-        <div class="stage-shift">${escapeHtml(next.shiftLabel)} ${tierBadge(next.tier)}</div>
+        <div class="stage-label">Pick ${idx + 2} of ${state.results.rows.length}</div>
+        <div class="stage-shift">${tierBadge(next.tier)}</div>
         <div class="stage-name" id="stage-name">?</div>
         <button class="accent" id="draw-btn" onclick="revealNext()">Draw!</button>
       </div>`;
@@ -948,13 +770,8 @@ function revealNext() {
   function land() {
     nameEl.textContent = finalName;
     nameEl.classList.add('landed');
-    setTimeout(() => {
-      state.results.revealedIndex = idx;
-      saveState();
-      renderResults();
-    }, 550);
+    setTimeout(() => { state.results.revealedIndex = idx; saveState(); renderResults(); }, 550);
   }
-
   if (!pool) { nameEl.textContent = finalName; land(); return; }
 
   let ticks = 0;
@@ -965,29 +782,25 @@ function revealNext() {
       nameEl.textContent = pool[Math.floor(Math.random() * pool.length)];
       ticks++;
       setTimeout(tick, 55 + (ticks / maxTicks) * 200);
-    } else {
-      land();
-    }
+    } else { land(); }
   })();
 }
 
 function skipToFull() {
   if (!state.results) return;
   state.results.revealedIndex = state.results.rows.length - 1;
-  saveState();
-  renderResults();
+  saveState(); renderResults();
 }
 
 function openSwap(rowId) {
   const row = state.results.rows.find(r => r.id === rowId);
   const already = everyoneOnWheelSoFar();
-  const candidates = state.managers.filter(m => !already.has(m.name) || m.name === row.workingName);
-  const pool = candidates.filter(m => m.name !== row.assignedName);
+  const pool = state.managers.filter(m => !already.has(m.name));
   const modal = document.getElementById('modal-root');
   if (pool.length === 0) {
     modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal">
       <h3>No one left to swap to</h3>
-      <p class="hint">Rule 2 requires a volunteer whose name hasn't appeared on the wheel yet — everyone left has already been drawn this week.</p>
+      <p class="hint">Rule 2 needs a volunteer whose name hasn't been drawn yet — everyone else has already been revealed.</p>
       <button class="secondary" onclick="closeModal()">Close</button>
     </div></div>`;
     return;
@@ -1002,10 +815,9 @@ function openSwap(rowId) {
 function doSwap(rowId, managerId) {
   const row = state.results.rows.find(r => r.id === rowId);
   const m = state.managers.find(x => x.id === managerId);
-  row.workingName = m.name;
-  row.swapped = true;
+  row.workingName = m.name; row.swapped = true;
   saveState(); renderResults(); closeModal();
-  toast(`${m.name} is now covering "${row.shiftLabel}"`);
+  toast(`${m.name} is now covering that pick`);
 }
 
 function openSplit(rowId) {
@@ -1034,44 +846,29 @@ function doSplit(rowId, managerId) {
   row.splitWith = m.name;
   state.results.drawOrder.push(m.name);
   saveState(); renderResults(); closeModal();
-  toast(`"${row.shiftLabel}" split between ${row.workingName} and ${m.name}`);
+  toast(`Split between ${row.workingName} and ${m.name}`);
 }
-function closeModal(e) {
-  if (e && e.target !== e.currentTarget) return;
-  document.getElementById('modal-root').innerHTML = '';
-}
+function closeModal(e) { if (e && e.target !== e.currentTarget) return; document.getElementById('modal-root').innerHTML = ''; }
 
 function finalizeWeek() {
   if (!state.results) return;
-  if (!confirm('Save this week\'s draw order to history? This sets next week\'s weights.')) return;
-  const order = state.results.drawOrder;
-  order.forEach((name, idx) => {
-    const m = state.managers.find(x => x.name === name);
-    if (m) m.lastRank = idx + 1; // 1 = drawn first, higher = drawn later
-  });
-  state.history.unshift({
-    id: uid(),
-    date: new Date().toISOString(),
-    label: state.week.label || 'Untitled week',
-    order
-  });
-  // reset the week's shift setup for next time, keep tier1 defaults
+  if (!confirm("Save this week's draw order to history? This updates everyone's rolling weight.")) return;
+  state.history.unshift({ id: uid(), date: new Date().toISOString(), label: state.week.label || 'Untitled week', order: state.results.drawOrder });
   state.week.tier1b = [];
-  state.week.redgym = [];
-  state.week.sac = [];
-  state.week.bash = { active: false, count: 4, volunteers: [] };
+  state.week.redgym = { fri: 0, sat: 0, sun: 0 };
+  state.week.sac = { fri: 0, sat: 0, sun: 0 };
+  state.week.event.active = false;
+  state.week.event.volunteers = [];
   state.week.label = '';
   state.results = null;
   saveState();
-  renderRoster();
-  renderAllShiftLists();
+  renderRoster(); renderAllShiftLists();
   document.getElementById('results-card').style.display = 'none';
   renderHistory();
-  toast('Week saved — weights updated for next time');
+  toast('Week saved — weights updated');
   document.querySelector('.tab-btn[data-tab="history"]').click();
 }
 
-// ---------- history ----------
 function renderHistory() {
   const list = document.getElementById('history-list');
   list.innerHTML = '';
@@ -1085,8 +882,7 @@ function renderHistory() {
         <span>${escapeHtml(week.label)} <span style="color:var(--ink-soft); font-weight:500;">— ${d.toLocaleDateString()}</span></span>
         <button class="danger-ghost" onclick="deleteHistory('${week.id}')">Delete</button>
       </div>
-      <div class="order-list">${week.order.map((n, i) => `<span>${i + 1}. ${escapeHtml(n)}</span>`).join('')}</div>
-    `;
+      <div class="order-list">${week.order.map((n, i) => `<span>${i + 1}. ${escapeHtml(n)}</span>`).join('')}</div>`;
     list.appendChild(div);
   });
 }
@@ -1096,7 +892,6 @@ function deleteHistory(id) {
   saveState(); renderHistory();
 }
 
-// ---------- init ----------
 function init() {
   renderRoster();
   renderAllShiftLists();
