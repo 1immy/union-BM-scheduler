@@ -292,15 +292,12 @@ tr:last-child td { border-bottom: none; }
       <div class="tier-head">
         <div>
           <div class="name">3 · Red Gym</div>
-          <div class="desc">Drafted before SAC. Pick order only, building and time chosen live.</div>
+          <div class="desc">Drafted before SAC. These slots recur every week; pick order only, building and time chosen live.</div>
         </div>
       </div>
       <div class="tier-body">
-        <div class="row" style="gap:20px;">
-          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Fri</label><input type="number" id="redgym-fri" min="0" max="20" style="width:64px;"></div>
-          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Sat</label><input type="number" id="redgym-sat" min="0" max="20" style="width:64px;"></div>
-          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Sun</label><input type="number" id="redgym-sun" min="0" max="20" style="width:64px;"></div>
-        </div>
+        <div id="redgym-list"></div>
+        <button class="secondary" onclick="addShift('redgym')" style="margin-top:8px;">+ Add slot</button>
       </div>
     </div>
 
@@ -308,16 +305,13 @@ tr:last-child td { border-bottom: none; }
       <div class="tier-head">
         <div>
           <div class="name">4 · SAC</div>
-          <div class="desc">Drafted last. Any pick can be split between two people, decided live.</div>
+          <div class="desc">Drafted last. These slots recur every week; pick order only, building and time chosen live.</div>
         </div>
         <span class="badge tier4">Drafted last</span>
       </div>
       <div class="tier-body">
-        <div class="row" style="gap:20px;">
-          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Fri</label><input type="number" id="sac-fri" min="0" max="20" style="width:64px;"></div>
-          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Sat</label><input type="number" id="sac-sat" min="0" max="20" style="width:64px;"></div>
-          <div><label style="font-size:13px;color:var(--ink-soft);display:block;">Sun</label><input type="number" id="sac-sun" min="0" max="20" style="width:64px;"></div>
-        </div>
+        <div id="sac-list"></div>
+        <button class="secondary" onclick="addShift('sac')" style="margin-top:8px;">+ Add slot</button>
       </div>
     </div>
 
@@ -392,6 +386,8 @@ const defaultTier1 = [
   'Sat MU Close', 'Sat US Close',
   'Sun MU Open', 'Sun US Open'
 ];
+const defaultRedgym = ['Fri Close', 'Sat Open', 'Sat Close'];
+const defaultSac = ['Fri Close', 'Sat Open', 'Sat Close'];
 
 function freshState() {
   return {
@@ -401,8 +397,8 @@ function freshState() {
       label: '',
       tier1: defaultTier1.map(t => ({ id: uid(), label: t })),
       tier1b: [],
-      redgym: { fri: 0, sat: 0, sun: 0 },
-      sac: { fri: 0, sat: 0, sun: 0 },
+      redgym: defaultRedgym.map(t => ({ id: uid(), label: t })),
+      sac: defaultSac.map(t => ({ id: uid(), label: t })),
       event: { name: 'Badger Bash', active: false, count: 4, volunteers: [] },
       noDoubleBook: true
     },
@@ -413,8 +409,8 @@ function freshState() {
 let state = loadState() || freshState();
 // --- migrations from earlier versions ---
 delete state.settings;
-if (Array.isArray(state.week.redgym) || (state.week.redgym && 'count' in state.week.redgym)) state.week.redgym = { fri: 0, sat: 0, sun: 0 };
-if (Array.isArray(state.week.sac) || (state.week.sac && 'count' in state.week.sac)) state.week.sac = { fri: 0, sat: 0, sun: 0 };
+if (!Array.isArray(state.week.redgym)) state.week.redgym = defaultRedgym.map(t => ({ id: uid(), label: t }));
+if (!Array.isArray(state.week.sac)) state.week.sac = defaultSac.map(t => ({ id: uid(), label: t }));
 if (state.week.bash && !state.week.event) {
   state.week.event = { name: 'Badger Bash', active: state.week.bash.active, count: state.week.bash.count, volunteers: state.week.bash.volunteers };
   delete state.week.bash;
@@ -559,17 +555,13 @@ function addShift(arrKey) {
 function renderAllShiftLists() {
   renderShiftList('tier1-list', 'tier1');
   renderShiftList('tier1b-list', 'tier1b');
+  renderShiftList('redgym-list', 'redgym');
+  renderShiftList('sac-list', 'sac');
   document.getElementById('week-label').value = state.week.label || '';
   document.getElementById('event-active').checked = state.week.event.active;
   document.getElementById('event-body').style.display = state.week.event.active ? 'block' : 'none';
   document.getElementById('event-name').value = state.week.event.name;
   document.getElementById('event-count').value = state.week.event.count;
-  document.getElementById('redgym-fri').value = state.week.redgym.fri;
-  document.getElementById('redgym-sat').value = state.week.redgym.sat;
-  document.getElementById('redgym-sun').value = state.week.redgym.sun;
-  document.getElementById('sac-fri').value = state.week.sac.fri;
-  document.getElementById('sac-sat').value = state.week.sac.sat;
-  document.getElementById('sac-sun').value = state.week.sac.sun;
   document.getElementById('no-double-book').checked = state.week.noDoubleBook;
   renderEventVolunteers();
 }
@@ -602,10 +594,6 @@ document.getElementById('event-active').addEventListener('change', e => {
 });
 document.getElementById('event-name').addEventListener('change', e => { state.week.event.name = e.target.value.trim() || 'Special Event'; saveState(); });
 document.getElementById('event-count').addEventListener('change', e => { state.week.event.count = Number(e.target.value) || 4; saveState(); });
-['fri','sat','sun'].forEach(day => {
-  document.getElementById('redgym-' + day).addEventListener('change', e => { state.week.redgym[day] = Math.max(0, Number(e.target.value) || 0); saveState(); });
-  document.getElementById('sac-' + day).addEventListener('change', e => { state.week.sac[day] = Math.max(0, Number(e.target.value) || 0); saveState(); });
-});
 document.getElementById('no-double-book').addEventListener('change', e => { state.week.noDoubleBook = e.target.checked; saveState(); });
 
 // ---------- weighted draft engine ----------
@@ -669,38 +657,33 @@ function runDraw() {
     });
   }
 
-  const dayLabels = { fri: 'Fri', sat: 'Sat', sun: 'Sun' };
-  ['fri', 'sat', 'sun'].forEach(day => {
-    const n = state.week.redgym[day] || 0;
-    for (let i = 0; i < n; i++) {
-      const snapshot = pool.map(m => m.name);
-      const picked = drawOne(pool);
-      results.push({
-        id: uid(), tier: 3, shiftLabel: `Red Gym (${dayLabels[day]})`,
-        assignedName: picked ? picked.name : '(not enough people)',
-        workingName: picked ? picked.name : '(not enough people)',
-        swapped: false, swapEligible: false, candidatePool: snapshot, pickedOption: null
-      });
-    }
+  state.week.redgym.forEach((shift, idx) => {
+    const snapshot = pool.map(m => m.name);
+    const picked = drawOne(pool);
+    results.push({
+      id: uid(), tier: 3, shiftLabel: `Red Gym pick ${idx + 1}`,
+      assignedName: picked ? picked.name : '(not enough people)',
+      workingName: picked ? picked.name : '(not enough people)',
+      swapped: false, swapEligible: false, candidatePool: snapshot, pickedOption: null
+    });
   });
 
-  ['fri', 'sat', 'sun'].forEach(day => {
-    const n = state.week.sac[day] || 0;
-    for (let i = 0; i < n; i++) {
-      const snapshot = pool.map(m => m.name);
-      const picked = drawOne(pool);
-      results.push({
-        id: uid(), tier: 4, shiftLabel: `SAC (${dayLabels[day]})`,
-        assignedName: picked ? picked.name : '(not enough people)',
-        workingName: picked ? picked.name : '(not enough people)',
-        swapped: false, swapEligible: false, splitWith: null, candidatePool: snapshot, pickedOption: null
-      });
-    }
+  state.week.sac.forEach((shift, idx) => {
+    const snapshot = pool.map(m => m.name);
+    const picked = drawOne(pool);
+    results.push({
+      id: uid(), tier: 4, shiftLabel: `SAC pick ${idx + 1}`,
+      assignedName: picked ? picked.name : '(not enough people)',
+      workingName: picked ? picked.name : '(not enough people)',
+      swapped: false, swapEligible: false, candidatePool: snapshot, pickedOption: null
+    });
   });
 
   state.results = {
     drawOrder, rows: results, revealedIndex: -1,
-    weekendOptions: tier1all.map(s => s.label)
+    weekendOptions: tier1all.map(s => s.label),
+    redgymOptions: state.week.redgym.map(s => s.label),
+    sacOptions: state.week.sac.map(s => s.label)
   };
   saveState();
   renderResults();
@@ -726,22 +709,27 @@ function everyoneOnWheelSoFar() {
   return s;
 }
 
+function tierOptionsFor(tier) {
+  if (tier === 1) return state.results.weekendOptions || [];
+  if (tier === 3) return state.results.redgymOptions || [];
+  if (tier === 4) return state.results.sacOptions || [];
+  return [];
+}
+
 function buildResultRow(r, i) {
   const row = document.createElement('div');
   row.className = 'result-row';
   const swapBtn = r.swapEligible ? `<button class="ghost" onclick="openSwap('${r.id}')">Swap</button>` : '';
-  const splitBtn = (r.tier === 4) ? `<button class="ghost" onclick="openSplit('${r.id}')">${r.splitWith ? 'Change split' : 'Split shift'}</button>` : '';
 
   let pickerHtml = '';
-  if (r.tier === 1) {
-    const claimed = new Set(state.results.rows.filter(rr => rr.tier === 1 && rr.id !== r.id && rr.pickedOption).map(rr => rr.pickedOption));
-    const options = (state.results.weekendOptions || []).filter(opt => !claimed.has(opt));
+  const options = tierOptionsFor(r.tier);
+  if (options.length) {
+    const claimed = new Set(state.results.rows.filter(rr => rr.tier === r.tier && rr.id !== r.id && rr.pickedOption).map(rr => rr.pickedOption));
+    const avail = options.filter(opt => !claimed.has(opt));
     pickerHtml = `<select class="pick-select" onchange="setPickedOption('${r.id}', this.value)">
       <option value="">What did they pick?</option>
-      ${options.map(opt => `<option value="${escapeHtml(opt)}" ${r.pickedOption === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('')}
+      ${avail.map(opt => `<option value="${escapeHtml(opt)}" ${r.pickedOption === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('')}
     </select>`;
-  } else if (r.tier === 3 || r.tier === 4) {
-    pickerHtml = `<input type="text" class="pick-input" placeholder="What did they pick? (optional)" value="${escapeHtml(r.pickedOption || '')}" onchange="setPickedOption('${r.id}', this.value)">`;
   }
 
   row.innerHTML = `
@@ -751,11 +739,10 @@ function buildResultRow(r, i) {
       <div class="assign-line">
         Up to pick: <span class="who">${escapeHtml(r.workingName)}</span>
         ${r.swapped ? `<span class="swap-note"> (swapped for ${escapeHtml(r.assignedName)})</span>` : ''}
-        ${r.splitWith ? `<span class="swap-note"> (split with ${escapeHtml(r.splitWith)})</span>` : ''}
       </div>
       ${pickerHtml}
     </div>
-    <div class="result-actions">${swapBtn}${splitBtn}</div>
+    <div class="result-actions">${swapBtn}</div>
   `;
   return row;
 }
@@ -773,20 +760,21 @@ function renderStatusBoard() {
   const rows = state.results.rows;
   let html = '';
 
-  const weekendOptions = state.results.weekendOptions || [];
-  if (weekendOptions.length) {
-    const claimed = new Set(rows.filter(r => r.tier === 1 && r.pickedOption).map(r => r.pickedOption));
-    html += `<div class="status-group"><span class="status-label">Weekend</span>` +
-      weekendOptions.map(opt => `<span class="chip ${claimed.has(opt) ? 'chip-red' : 'chip-green'}">${escapeHtml(opt)}</span>`).join('') +
+  [[1, 'Weekend', 'weekendOptions'], [3, 'Red Gym', 'redgymOptions'], [4, 'SAC', 'sacOptions']].forEach(([t, label, key]) => {
+    const options = state.results[key] || [];
+    if (!options.length) return;
+    const claimed = new Set(rows.filter(r => r.tier === t && r.pickedOption).map(r => r.pickedOption));
+    html += `<div class="status-group"><span class="status-label">${label}</span>` +
+      options.map(opt => `<span class="chip ${claimed.has(opt) ? 'chip-red' : 'chip-green'}">${escapeHtml(opt)}</span>`).join('') +
       `</div>`;
-  }
-  [[2, 'Special Event'], [3, 'Red Gym'], [4, 'SAC']].forEach(([t, label]) => {
-    const total = rows.filter(r => r.tier === t).length;
-    if (!total) return;
-    const remaining = rows.filter((r, i) => r.tier === t && i > idx).length;
-    html += `<div class="status-group"><span class="status-label">${label}</span>
-      <span class="chip ${remaining > 0 ? 'chip-green' : 'chip-red'}">${remaining} of ${total} still open</span></div>`;
   });
+
+  const eventTotal = rows.filter(r => r.tier === 2).length;
+  if (eventTotal) {
+    const remaining = rows.filter((r, i) => r.tier === 2 && i > idx).length;
+    html += `<div class="status-group"><span class="status-label">Special Event</span>
+      <span class="chip ${remaining > 0 ? 'chip-green' : 'chip-red'}">${remaining} of ${eventTotal} still open</span></div>`;
+  }
   board.innerHTML = html;
 }
 
@@ -914,34 +902,6 @@ function doSwap(rowId, managerId) {
   toast(`${m.name} is now covering that pick`);
 }
 
-function openSplit(rowId) {
-  const row = state.results.rows.find(r => r.id === rowId);
-  const already = everyoneOnWheelSoFar();
-  const pool = state.managers.filter(m => !already.has(m.name));
-  const modal = document.getElementById('modal-root');
-  if (pool.length === 0) {
-    modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal">
-      <h3>No one left to split with</h3>
-      <p class="hint">Everyone remaining has already been drawn this week.</p>
-      <button class="secondary" onclick="closeModal()">Close</button>
-    </div></div>`;
-    return;
-  }
-  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
-    <h3>Split "${escapeHtml(row.shiftLabel)}"</h3>
-    <p class="hint">Both people need to agree to split this shift in half:</p>
-    ${pool.map(m => `<button class="secondary cand" onclick="doSplit('${rowId}','${m.id}')">${escapeHtml(m.name)}</button>`).join('')}
-    <button class="ghost" onclick="closeModal()" style="margin-top:6px;">Cancel</button>
-  </div></div>`;
-}
-function doSplit(rowId, managerId) {
-  const row = state.results.rows.find(r => r.id === rowId);
-  const m = state.managers.find(x => x.id === managerId);
-  row.splitWith = m.name;
-  state.results.drawOrder.push(m.name);
-  saveState(); renderResults(); closeModal();
-  toast(`Split between ${row.workingName} and ${m.name}`);
-}
 function closeModal(e) { if (e && e.target !== e.currentTarget) return; document.getElementById('modal-root').innerHTML = ''; }
 
 function finalizeWeek() {
@@ -967,19 +927,17 @@ function finalizeWeek() {
     weights: weightsUsed,
     setup: {
       weekendOptions: state.results.weekendOptions || [],
-      redgym: { ...state.week.redgym },
-      sac: { ...state.week.sac },
+      redgymOptions: state.results.redgymOptions || [],
+      sacOptions: state.results.sacOptions || [],
       event: { name: state.week.event.name, count: state.week.event.count, active: state.week.event.active, volunteers: state.week.event.volunteers.slice() }
     },
     rows: state.results.rows.map(r => ({
       shiftLabel: r.shiftLabel, tier: r.tier, workingName: r.workingName,
-      assignedName: r.assignedName, pickedOption: r.pickedOption, swapped: r.swapped, splitWith: r.splitWith
+      assignedName: r.assignedName, pickedOption: r.pickedOption, swapped: r.swapped
     }))
   });
 
   state.week.tier1b = [];
-  state.week.redgym = { fri: 0, sat: 0, sun: 0 };
-  state.week.sac = { fri: 0, sat: 0, sun: 0 };
   state.week.event.active = false;
   state.week.event.volunteers = [];
   state.week.label = '';
@@ -1001,15 +959,12 @@ function buildWeekDetailHtml(week) {
   const weightsText = (week.weights || []).map(w => `${escapeHtml(w.name)}: ${w.weight}`).join(', ') || 'not recorded';
   const setup = week.setup || {};
   const ev = setup.event || {};
-  const rg = setup.redgym || {};
-  const sc = setup.sac || {};
   let picksText = 'not recorded';
   if (week.rows && week.rows.length) {
     picksText = week.rows.map(r => {
       let line = `${escapeHtml(r.shiftLabel)}: ${escapeHtml(r.workingName)}`;
       if (r.pickedOption) line += ` (${escapeHtml(r.pickedOption)})`;
       if (r.swapped) line += ` [swapped for ${escapeHtml(r.assignedName)}]`;
-      if (r.splitWith) line += ` [split with ${escapeHtml(r.splitWith)}]`;
       return line;
     }).join('<br>');
   }
@@ -1017,8 +972,8 @@ function buildWeekDetailHtml(week) {
     <div class="detail-block"><div class="detail-title">Weights used</div><div class="detail-text">${weightsText}</div></div>
     <div class="detail-block"><div class="detail-title">Setup</div><div class="detail-text">
       Weekend options: ${(setup.weekendOptions || []).map(escapeHtml).join(', ') || 'none'}<br>
-      Red Gym: Fri ${rg.fri || 0}, Sat ${rg.sat || 0}, Sun ${rg.sun || 0}<br>
-      SAC: Fri ${sc.fri || 0}, Sat ${sc.sat || 0}, Sun ${sc.sun || 0}<br>
+      Red Gym options: ${(setup.redgymOptions || []).map(escapeHtml).join(', ') || 'none'}<br>
+      SAC options: ${(setup.sacOptions || []).map(escapeHtml).join(', ') || 'none'}<br>
       Special event: ${ev.active ? `${escapeHtml(ev.name || '')} (${ev.count} slots)` : 'not held'}
     </div></div>
     <div class="detail-block"><div class="detail-title">Picks</div><div class="detail-text">${picksText}</div></div>
