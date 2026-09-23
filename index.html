@@ -121,6 +121,8 @@ body.present-mode .stage-card { padding: 60px 20px; }
 .panel { display: none; }
 .panel.active { display: block; }
 
+section.card.drag-over { outline: 2px dashed var(--accent); outline-offset: -6px; }
+
 section.card {
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 22px 24px; margin-bottom: 18px;
@@ -323,7 +325,7 @@ tr:last-child td { border-bottom: none; }
 
   <!-- ROSTER -->
   <div class="panel active" id="panel-roster">
-    <section class="card">
+    <section class="card" id="active-roster-card" ondragover="allowDrop(event)" ondrop="handleDropActive(event)" ondragenter="this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
       <h2>Building managers</h2>
       <p class="hint">Weight goes up when someone is drafted late and down when they're drafted early. The effect carries over week to week instead of resetting, so repeated bad luck keeps building until it's corrected.</p>
 
@@ -344,6 +346,19 @@ tr:last-child td { border-bottom: none; }
       <div class="empty-state" id="roster-empty" style="display:none;">
         <div class="big">No one on the roster yet</div>
         Add every building manager who should be in the draw pool.
+      </div>
+    </section>
+
+    <section class="card" id="bench-roster-card" ondragover="allowDrop(event)" ondrop="handleDropBench(event)" ondragenter="this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
+      <h2>Bench</h2>
+      <p class="hint">Drag a name here, or use the Bench button, to keep someone on the roster without including them in the draft pool.</p>
+      <table id="bench-table">
+        <thead><tr><th>Name</th><th>Last position</th><th>Credit</th><th>Weight</th><th></th></tr></thead>
+        <tbody id="bench-body"></tbody>
+      </table>
+      <div class="empty-state" id="bench-empty" style="display:none;">
+        <div class="big">Bench is empty</div>
+        Drag a name here to sit them out of the draft pool.
       </div>
     </section>
   </div>
@@ -593,7 +608,7 @@ async function saveState() {
     if (validManagers.length) {
       await sb.rpc('rpc_sync_managers', {
         p_token: session.token,
-        p_managers: validManagers.map(m => ({ id: m.id, credit: m.credit || 0, override: m.override, points: m.points || 0, skip_next: !!m.skipNext, swap_insurance: m.swapInsurance || 0 }))
+        p_managers: validManagers.map(m => ({ id: m.id, credit: m.credit || 0, override: m.override, points: m.points || 0, skip_next: !!m.skipNext, swap_insurance: m.swapInsurance || 0, benched: !!m.benched }))
       });
     }
   } catch (e) {
@@ -817,6 +832,7 @@ if (state.managers) state.managers.forEach(m => {
   if (m.points === undefined) m.points = 0;
   if (m.skipNext === undefined) m.skipNext = false;
   if (m.swapInsurance === undefined) m.swapInsurance = 0;
+  if (m.benched === undefined) m.benched = false;
 });
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -881,32 +897,78 @@ function computeWeight(m) {
 }
 
 // ---------- roster rendering ----------
+function rosterRowHtml(m, benched) {
+  const w = computeWeight(m);
+  const lastPos = lastPosition(m);
+  const actionBtn = benched
+    ? `<button class="ghost" onclick="toggleBenchStatus('${m.id}', false)">Restore</button>`
+    : `<button class="ghost" onclick="toggleBenchStatus('${m.id}', true)">Bench</button>
+       <button class="ghost" onclick="overrideWeight('${m.id}')">Override</button>`;
+  return `
+    <td class="roster-name">${escapeHtml(m.name)}</td>
+    <td class="pos-history">${lastPos ? '#' + lastPos + ' last week' : '<span style="color:var(--ink-soft)">no history</span>'}</td>
+    <td class="num">${(m.credit || 0).toFixed(1)}</td>
+    <td><span class="weight-pill">weight ${w}</span></td>
+    <td style="text-align:right;">
+      ${actionBtn}
+      <button class="danger-ghost" onclick="removeManager('${m.id}')">Remove</button>
+    </td>`;
+}
 function renderRoster() {
-  const body = document.getElementById('roster-body');
-  body.innerHTML = '';
-  document.getElementById('roster-empty').style.display = state.managers.length ? 'none' : 'block';
-  state.managers.forEach(m => {
+  const activeBody = document.getElementById('roster-body');
+  const benchBody = document.getElementById('bench-body');
+  activeBody.innerHTML = '';
+  benchBody.innerHTML = '';
+  const active = state.managers.filter(m => !m.benched);
+  const benched = state.managers.filter(m => m.benched);
+  document.getElementById('roster-empty').style.display = active.length ? 'none' : 'block';
+  document.getElementById('bench-empty').style.display = benched.length ? 'none' : 'block';
+
+  active.forEach(m => {
     const tr = document.createElement('tr');
-    const w = computeWeight(m);
-    const lastPos = lastPosition(m);
-    tr.innerHTML = `
-      <td class="roster-name">${escapeHtml(m.name)}</td>
-      <td class="pos-history">${lastPos ? '#' + lastPos + ' last week' : '<span style="color:var(--ink-soft)">no history</span>'}</td>
-      <td class="num">${(m.credit || 0).toFixed(1)}</td>
-      <td><span class="weight-pill">weight ${w}</span></td>
-      <td style="text-align:right;">
-        <button class="ghost lead-only" onclick="overrideWeight('${m.id}')">Override</button>
-        <button class="danger-ghost lead-only" onclick="removeManager('${m.id}')">Remove</button>
-      </td>`;
-    body.appendChild(tr);
+    tr.draggable = !!session;
+    tr.style.cursor = session ? 'grab' : '';
+    tr.addEventListener('dragstart', e => handleDragStart(e, m.id));
+    tr.innerHTML = rosterRowHtml(m, false);
+    activeBody.appendChild(tr);
   });
+  benched.forEach(m => {
+    const tr = document.createElement('tr');
+    tr.draggable = !!session;
+    tr.style.cursor = session ? 'grab' : '';
+    tr.addEventListener('dragstart', e => handleDragStart(e, m.id));
+    tr.innerHTML = rosterRowHtml(m, true);
+    benchBody.appendChild(tr);
+  });
+}
+function handleDragStart(e, id) { e.dataTransfer.setData('text/plain', id); }
+function allowDrop(e) { e.preventDefault(); }
+function handleDropActive(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const id = e.dataTransfer.getData('text/plain');
+  if (id) toggleBenchStatus(id, false);
+}
+function handleDropBench(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const id = e.dataTransfer.getData('text/plain');
+  if (id) toggleBenchStatus(id, true);
+}
+function toggleBenchStatus(id, benched) {
+  if (!requireLead()) return;
+  const m = state.managers.find(x => x.id === id);
+  if (!m || !!m.benched === benched) return;
+  m.benched = benched;
+  saveState(); renderRoster();
+  toast(benched ? `${m.name} moved to the bench` : `${m.name} is back in the draft pool`);
 }
 async function addManager() {
   if (!requireLead()) return;
   const input = document.getElementById('new-name');
   const name = input.value.trim();
   if (!name) return;
-  const local = { id: uid(), name, override: null, credit: 0, points: 0, skipNext: false, swapInsurance: 0 };
+  const local = { id: uid(), name, override: null, credit: 0, points: 0, skipNext: false, swapInsurance: 0, benched: false };
   state.managers.push(local);
   input.value = '';
   renderRoster();
@@ -953,7 +1015,7 @@ async function importRoster(e) {
     const existing = new Set(state.managers.map(m => m.name.toLowerCase()));
     const toAdd = names.filter(name => !existing.has(name.toLowerCase()) && existing.add(name.toLowerCase()));
     if (!toAdd.length) { toast('No new names found in that file'); return; }
-    toAdd.forEach(name => state.managers.push({ id: uid(), name, override: null, credit: 0, points: 0, skipNext: false, swapInsurance: 0 }));
+    toAdd.forEach(name => state.managers.push({ id: uid(), name, override: null, credit: 0, points: 0, skipNext: false, swapInsurance: 0, benched: false }));
     renderRoster();
     if (sb) {
       const { data, error } = await sb.rpc('rpc_import_managers', { p_token: session.token, p_names: toAdd });
@@ -1151,7 +1213,7 @@ function runDraw() {
   if (state.managers.length === 0) { toast('Add building managers to the roster first'); return; }
   closeModal();
   const noDouble = state.week.noDoubleBook;
-  let pool = state.managers.filter(m => !m.skipNext);
+  let pool = state.managers.filter(m => !m.skipNext && !m.benched);
   const skipped = state.managers.filter(m => m.skipNext);
   if (skipped.length) toast(`${skipped.map(m => m.name).join(', ')} sitting out this draft (Guaranteed Weekend Off)`);
   const drawOrder = [];
@@ -1640,7 +1702,7 @@ const pointPresets = [
   { label: 'Shoutout from another department', delta: 15 },
   { label: 'Worked a special event', delta: 15 },
   { label: 'Great night report', delta: 5 },
-  { label: 'Unexcused absence', delta: -20 },
+  { label: 'Unexcused absence', delta: -100 },
   { label: 'Late arrival', delta: -10 },
   { label: "Didn't save the night report", delta: -10 }
 ];
@@ -1832,7 +1894,7 @@ async function loadFromSupabase() {
       state.managers = managersRes.data.map(r => ({
         id: r.id, name: r.name, credit: Number(r.credit) || 0,
         override: r.override === null || r.override === undefined ? null : Number(r.override),
-        points: r.points || 0, skipNext: !!r.skip_next, swapInsurance: r.swap_insurance || 0
+        points: r.points || 0, skipNext: !!r.skip_next, swapInsurance: r.swap_insurance || 0, benched: !!r.benched
       }));
     }
     if (shopRes.data) {
