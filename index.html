@@ -60,7 +60,27 @@ h1 {
   margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--line);
   color: var(--ink-soft); font-size: 13px; letter-spacing: 0.04em;
 }
-.subtitle { color: var(--ink-soft); font-size: 15px; margin-top: 4px; }
+.auth-widget { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink-soft); }
+.auth-widget .who { color: var(--ink); font-weight: 700; }
+body.signed-out .lead-only { display: none !important; }
+body.signed-out #panel-roster input,
+body.signed-out #panel-roster select,
+body.signed-out #panel-shifts input,
+body.signed-out #panel-shifts select,
+body.signed-out #panel-draw .pick-select,
+body.signed-out #panel-draw .pick-input {
+  pointer-events: none; opacity: 0.6;
+}
+body.signed-out #panel-roster button,
+body.signed-out #panel-shifts button,
+body.signed-out #panel-draw button {
+  display: none !important;
+}
+.view-only-banner {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 10px 16px; margin-bottom: 18px; font-size: 13.5px; color: var(--ink-soft);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+}
 nav.tabs {
   display: flex; gap: 4px; margin-bottom: 26px;
   border-bottom: 1px solid var(--line); overflow-x: auto;
@@ -187,12 +207,39 @@ tr:last-child td { border-bottom: none; }
 .settings-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .settings-row label { font-size: 14.5px; color: var(--ink-soft); font-weight: 600; }
 
-.status-board { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.status-board { margin-bottom: 18px; }
+.day-card-row { display: flex; flex-wrap: wrap; gap: 14px; }
+.day-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; flex: 1 1 220px; min-width: 200px; }
+.day-card-date { font-family: 'Zilla Slab', serif; font-weight: 700; font-size: 16px; margin-bottom: 10px; }
+.day-section { margin-bottom: 10px; }
+.day-section:last-child { margin-bottom: 0; }
+.day-section-title { font-size: 11.5px; font-weight: 800; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+.day-section-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .status-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .status-label { font-size: 12.5px; font-weight: 800; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; margin-right: 2px; }
 .chip { display: inline-block; font-size: 13px; font-weight: 700; padding: 4px 11px; border-radius: 20px; }
 .chip-green { background: #17331F; color: #7CE18B; }
 .chip-red { background: #3A1D1D; color: #FF9A9A; }
+
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.shop-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 20px; display: flex; flex-direction: column; gap: 10px;
+}
+.shop-icon {
+  width: 52px; height: 52px; border-radius: 50%; background: var(--accent-soft);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.shop-name { font-family: 'Zilla Slab', serif; font-weight: 700; font-size: 17px; }
+.shop-desc { font-size: 14px; color: var(--ink-soft); flex-grow: 1; }
+.shop-cost { font-weight: 800; color: var(--warm); font-size: 15px; }
+.points-balance { font-family: 'Zilla Slab', serif; font-weight: 700; font-size: 17px; color: var(--accent-bright); }
+.log-entry { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.log-entry:last-child { border-bottom: none; }
+.log-entry .who { font-weight: 700; }
+.log-entry .delta-pos { color: #7CE18B; font-weight: 700; }
+.log-entry .delta-neg { color: #FF9A9A; font-weight: 700; }
+.log-entry .when { color: var(--ink-soft); font-size: 12.5px; display: block; margin-top: 2px; }
 
 .week-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
 .detail-title { font-weight: 800; font-size: 12.5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
@@ -227,9 +274,9 @@ tr:last-child td { border-bottom: none; }
       <div>
         <h1>BM Drafts</h1>
         <div class="brand-tag">Wisconsin Union Building Managers</div>
-        <div class="subtitle">Sets pick order. Building and shift time are chosen live, not assigned by this tool.</div>
       </div>
     </div>
+    <div id="auth-widget" class="auth-widget"></div>
   </header>
 
   <nav class="tabs">
@@ -237,7 +284,14 @@ tr:last-child td { border-bottom: none; }
     <button class="tab-btn" data-tab="shifts">This Week's Draft</button>
     <button class="tab-btn" data-tab="draw">Draw &amp; Reveal</button>
     <button class="tab-btn" data-tab="history">History</button>
+    <button class="tab-btn" data-tab="points">Points</button>
+    <button class="tab-btn" data-tab="shop">Brownie Shop</button>
   </nav>
+
+  <div id="view-only-banner" class="view-only-banner" style="display:none;">
+    <span>Viewing live data. Sign in as a lead to run drafts, adjust points, or edit anything.</span>
+    <button class="secondary" onclick="openSignIn()">Sign in</button>
+  </div>
 
   <!-- ROSTER -->
   <div class="panel active" id="panel-roster">
@@ -245,13 +299,13 @@ tr:last-child td { border-bottom: none; }
       <h2>Building managers</h2>
       <p class="hint">Weight goes up when someone is drafted late and down when they're drafted early. The effect carries over week to week instead of resetting, so repeated bad luck keeps building until it's corrected.</p>
 
-      <div class="settings-row">
+      <div class="settings-row lead-only">
         <button class="danger-ghost" onclick="resetWeights()">Reset weighting (new season)</button>
         <button class="secondary" onclick="document.getElementById('import-file').click()">Import list</button>
         <input type="file" id="import-file" accept=".csv,.txt" style="display:none;" onchange="importRoster(event)">
       </div>
 
-      <div class="row" style="margin-bottom:14px;">
+      <div class="row lead-only" style="margin-bottom:14px;">
         <input type="text" id="new-name" placeholder="Add a name">
         <button class="accent" onclick="addManager()">Add</button>
       </div>
@@ -270,7 +324,12 @@ tr:last-child td { border-bottom: none; }
   <div class="panel" id="panel-shifts">
     <section class="card">
       <h2>Week of</h2>
-      <input type="text" id="week-label" placeholder="e.g. Oct 3–5" style="width:240px;">
+      <p class="hint">Pick the Friday of the weekend you're drafting for, or just use the upcoming one.</p>
+      <div class="row" style="margin-bottom:10px;">
+        <input type="date" id="week-date">
+        <button class="secondary" onclick="useUpcomingWeekend()">Use upcoming weekend</button>
+      </div>
+      <input type="text" id="week-label" placeholder="e.g. Week of Oct 3–5, 2026" style="width:280px;">
     </section>
 
     <div class="tier-block">
@@ -300,23 +359,13 @@ tr:last-child td { border-bottom: none; }
     <div class="tier-block">
       <div class="tier-head">
         <div>
-          <div class="name">2 · Special event</div>
-          <div class="desc">Badger Bash, Idea Fest Support, or anything similar. Volunteers fill first, and the draft only fills what's left.</div>
+          <div class="name">2 · Special events</div>
+          <div class="desc">Badger Bash, Idea Fest Support, or anything similar. Volunteers fill first, and the draft only fills what's left. Add as many as you need this week.</div>
         </div>
-        <label class="checkbox-row"><input type="checkbox" id="event-active"> Happening this week</label>
       </div>
-      <div class="tier-body" id="event-body" style="display:none;">
-        <div class="row" style="margin-bottom:12px;">
-          <label style="font-size:14.5px;color:var(--ink-soft);">Event name</label>
-          <input type="text" id="event-name" placeholder="e.g. Badger Bash" style="min-width:220px;">
-        </div>
-        <div class="row" style="margin-bottom:12px;">
-          <label style="font-size:14.5px;color:var(--ink-soft);">Slots needed</label>
-          <input type="number" id="event-count" value="4" min="1" max="12" style="width:70px;">
-        </div>
-        <p class="hint" style="margin-bottom:10px;">Volunteers (already signed up):</p>
-        <div id="event-volunteers"></div>
-        <button class="secondary" onclick="addEventVolunteer()">+ Add volunteer</button>
+      <div class="tier-body">
+        <div id="events-list"></div>
+        <button class="secondary" onclick="addEvent()" style="margin-top:8px;">+ Add another event</button>
       </div>
     </div>
 
@@ -394,6 +443,49 @@ tr:last-child td { border-bottom: none; }
       </div>
     </section>
   </div>
+  <!-- POINTS -->
+  <div class="panel" id="panel-points">
+    <section class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <h2 style="margin-bottom:2px;">Brownie Points</h2>
+          <p class="hint" style="margin-bottom:0;">Earned for good work, lost for the opposite. Adjust a person's balance with a reason attached.</p>
+        </div>
+      </div>
+      <table id="points-table" style="margin-top:14px;">
+        <thead><tr><th>Name</th><th>Balance</th><th></th></tr></thead>
+        <tbody id="points-body"></tbody>
+      </table>
+      <div class="empty-state" id="points-empty" style="display:none;">
+        <div class="big">No one on the roster yet</div>
+        Add building managers from the Roster tab first.
+      </div>
+      <p class="foot-note">Reading balances is open to everyone. Adjusting them requires signing in as a lead, enforced by the database itself, not just this page.</p>
+    </section>
+    <section class="card">
+      <h2>Recent activity</h2>
+      <div id="points-log"></div>
+      <div class="empty-state" id="points-log-empty" style="display:none;">
+        <div class="big">Nothing logged yet</div>
+        Point changes and shop redemptions will show up here.
+      </div>
+    </section>
+  </div>
+
+  <!-- BROWNIE SHOP -->
+  <div class="panel" id="panel-shop">
+    <section class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <h2 style="margin-bottom:2px;">Brownie Shop</h2>
+          <p class="hint" style="margin-bottom:0;">Redeem points for perks. A few have real effects on the next draft &mdash; most run on the honor system.</p>
+        </div>
+        <button class="secondary" onclick="addShopItem()">+ Add item</button>
+      </div>
+    </section>
+    <div id="shop-grid" class="shop-grid"></div>
+  </div>
+
   <footer class="brand-footer">
     <svg viewBox="0 0 200 200" width="24" height="24" aria-hidden="true">
       <circle cx="100" cy="100" r="98" fill="var(--accent)"></circle>
@@ -416,56 +508,276 @@ tr:last-child td { border-bottom: none; }
 <div id="modal-root"></div>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 // ---------- storage ----------
+// ---------- Supabase ----------
+const SUPABASE_URL = 'https://cnbdufqfrlgalzxxrmml.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ea6eMZwUuKBbgJ8B7BvMzg_LK3X3f2d';
+const sb = (window.supabase && window.supabase.createClient)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+let session = null;
+
 const STORE_KEY = 'bm-shift-wheel-v2';
-function loadState() {
+const TOKEN_KEY = 'bm-lead-token';
+function loadLocalCache() {
   try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); }
-  catch (e) { console.warn('load failed', e); }
+  catch (e) { console.warn('local cache load failed', e); }
   return null;
 }
-function saveState() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
-  catch (e) { console.warn('save failed', e); }
+function storeToken(token) {
+  try { if (token) localStorage.setItem(TOKEN_KEY, token); else localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+}
+function loadStoredToken() {
+  try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
+}
+
+async function saveState() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { console.warn('local cache save failed', e); }
+  if (!sb || !session) return;
+  try {
+    await sb.rpc('rpc_sync_week_config', {
+      p_token: session.token, p_label: state.week.label, p_weekend_date: state.week.weekendDate,
+      p_tier1: state.week.tier1, p_tier1b: state.week.tier1b, p_redgym: state.week.redgym, p_sac: state.week.sac,
+      p_events: state.week.events, p_no_double_book: state.week.noDoubleBook
+    });
+    if (state.results) {
+      await sb.rpc('rpc_sync_draft_state', {
+        p_token: session.token, p_is_active: true, p_draw_order: state.results.drawOrder, p_rows: state.results.rows,
+        p_revealed_index: state.results.revealedIndex, p_weekend_options: state.results.weekendOptions || [],
+        p_redgym_options: state.results.redgymOptions || [], p_sac_options: state.results.sacOptions || [],
+        p_weekend_meta: state.results.weekendMeta || [], p_redgym_meta: state.results.redgymMeta || [], p_sac_meta: state.results.sacMeta || []
+      });
+    } else {
+      await sb.rpc('rpc_sync_draft_state', {
+        p_token: session.token, p_is_active: false, p_draw_order: [], p_rows: [], p_revealed_index: -1,
+        p_weekend_options: [], p_redgym_options: [], p_sac_options: [], p_weekend_meta: [], p_redgym_meta: [], p_sac_meta: []
+      });
+    }
+    const validManagers = state.managers.filter(m => m.id && m.id.length === 36);
+    if (validManagers.length) {
+      await sb.rpc('rpc_sync_managers', {
+        p_token: session.token,
+        p_managers: validManagers.map(m => ({ id: m.id, credit: m.credit || 0, override: m.override, points: m.points || 0, skip_next: !!m.skipNext, swap_insurance: m.swapInsurance || 0 }))
+      });
+    }
+  } catch (e) {
+    console.warn('sync to server failed', e);
+    toast('Could not sync to the server. Check your connection.');
+  }
+}
+
+function requireLead() {
+  if (!session) {
+    toast('Sign in as a lead to do that');
+    openSignIn();
+    return false;
+  }
+  return true;
+}
+function updateAuthUI() {
+  const el = document.getElementById('auth-widget');
+  const banner = document.getElementById('view-only-banner');
+  document.body.classList.toggle('signed-out', !session);
+  if (session) {
+    el.innerHTML = `<span class="who">${escapeHtml(session.username)}</span><button class="ghost" onclick="signOut()">Sign out</button>`;
+    if (banner) banner.style.display = 'none';
+  } else {
+    el.innerHTML = `<button class="secondary" onclick="openSignIn()">Lead sign in</button>`;
+    if (banner) banner.style.display = 'flex';
+  }
+  renderRoster(); renderAllShiftLists();
+  if (state.results) renderResults();
+}
+function openSignIn() {
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Lead sign in</h3>
+    <p class="hint">Only the 5 building manager leads have accounts.</p>
+    <input type="text" id="signin-username" placeholder="Username" style="width:100%;margin-bottom:8px;" autocomplete="username">
+    <input type="password" id="signin-password" placeholder="Password" style="width:100%;margin-bottom:10px;" autocomplete="current-password">
+    <div class="row">
+      <button class="accent" onclick="submitSignIn()">Sign in</button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+}
+async function submitSignIn() {
+  if (!sb) { toast('Supabase client failed to load'); return; }
+  const username = document.getElementById('signin-username').value.trim();
+  const password = document.getElementById('signin-password').value;
+  if (!username || !password) { toast('Enter your username and password'); return; }
+  const { data, error } = await sb.rpc('login_lead', { p_username: username, p_password: password });
+  if (error || !data || !data.length) { toast('Invalid username or password'); return; }
+  session = { token: data[0].token, username: username.toLowerCase(), mustReset: data[0].must_reset };
+  storeToken(session.token);
+  closeModal();
+  updateAuthUI();
+  toast(`Signed in as ${session.username}`);
+  if (session.mustReset) openForceReset();
+}
+async function signOut() {
+  if (sb && session) { try { await sb.rpc('logout_lead', { p_token: session.token }); } catch (e) {} }
+  session = null;
+  storeToken(null);
+  updateAuthUI();
+  toast('Signed out');
+}
+async function restoreSession() {
+  const token = loadStoredToken();
+  if (!token || !sb) return;
+  try {
+    const { data, error } = await sb.rpc('whoami', { p_token: token });
+    if (error || !data || !data.length) { storeToken(null); return; }
+    session = { token, username: data[0].username, mustReset: data[0].must_reset };
+    updateAuthUI();
+    if (session.mustReset) openForceReset();
+  } catch (e) { storeToken(null); }
+}
+function openForceReset() {
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop"><div class="modal">
+    <h3>Set your username and password</h3>
+    <p class="hint">This account still has a temporary password. Pick your own username and password before continuing.</p>
+    <input type="text" id="reset-username" placeholder="New username" style="width:100%;margin-bottom:8px;" value="${escapeHtml(session.username)}">
+    <input type="password" id="reset-password" placeholder="New password (8+ characters)" style="width:100%;margin-bottom:8px;">
+    <input type="password" id="reset-password2" placeholder="Confirm new password" style="width:100%;margin-bottom:10px;">
+    <button class="accent" onclick="submitForceReset()">Save and continue</button>
+  </div></div>`;
+}
+async function submitForceReset() {
+  const newUsername = document.getElementById('reset-username').value.trim();
+  const p1 = document.getElementById('reset-password').value;
+  const p2 = document.getElementById('reset-password2').value;
+  if (!newUsername || !p1) { toast('Enter a username and password'); return; }
+  if (p1 !== p2) { toast('Passwords do not match'); return; }
+  if (p1.length < 8) { toast('Use at least 8 characters'); return; }
+  const { error } = await sb.rpc('set_lead_credentials', { p_token: session.token, p_new_username: newUsername, p_new_password: p1 });
+  if (error) { toast('Could not update credentials: ' + error.message); return; }
+  session.username = newUsername.toLowerCase();
+  session.mustReset = false;
+  closeModal();
+  updateAuthUI();
+  toast('Your login is all set');
 }
 
 const defaultTier1 = [
-  'Fri MU Close', 'Fri US Close',
-  'Sat MU Open', 'Sat US Open',
-  'Sat MU Close', 'Sat US Close',
-  'Sun MU Open', 'Sun US Open'
+  { label: 'Fri MU Close', day: 'Fri' },
+  { label: 'Fri US Close', day: 'Fri' },
+  { label: 'Sat MU Open', day: 'Sat' },
+  { label: 'Sat US Open', day: 'Sat' },
+  { label: 'Sat MU Close', day: 'Sat' },
+  { label: 'Sat US Close', day: 'Sat' },
+  { label: 'Sun MU Open', day: 'Sun' },
+  { label: 'Sun US Open', day: 'Sun' }
 ];
-const defaultRedgym = ['Fri Close', 'Sat Open', 'Sat Close'];
-const defaultSac = ['Fri Close', 'Sat Open', 'Sat Close'];
+const defaultRedgym = [
+  { label: 'Fri Close', day: 'Fri' },
+  { label: 'Sat Open', day: 'Sat' },
+  { label: 'Sat Close', day: 'Sat' }
+];
+const defaultSac = [
+  { label: 'Fri Close', day: 'Fri' },
+  { label: 'Sat Open', day: 'Sat' },
+  { label: 'Sat Close', day: 'Sat' }
+];
+const defaultShopItems = [
+  { id: 'boost', name: 'Front of the Line', desc: 'Adds a one-time credit boost applied immediately, raising your odds on the very next draft.', cost: 80, icon: 'star', effect: 'creditBoost' },
+  { id: 'weekoff', name: 'Guaranteed Weekend Off', desc: 'Sit out the next draft entirely. You keep your credit for the week after.', cost: 150, icon: 'calendar', effect: 'skipNext' },
+  { id: 'swapins', name: 'Swap Insurance', desc: "Guarantees a swap next time you're drafted, even outside the first 10 shifts.", cost: 60, icon: 'shield', effect: 'swapInsurance' },
+  { id: 'latepass', name: 'Late Pass', desc: 'Forgives one late arrival. Honor system \u2014 tell your lead you\'re cashing it in.', cost: 30, icon: 'clock', effect: 'honor' },
+  { id: 'brownie', name: 'An Actual Brownie', desc: 'Redeem for a real brownie from the leads. The original brownie point.', cost: 20, icon: 'brownie', effect: 'honor' }
+];
+
+function inferDay(label) {
+  const l = String(label || '').trim();
+  if (/^Fri/i.test(l)) return 'Fri';
+  if (/^Sat/i.test(l)) return 'Sat';
+  if (/^Sun/i.test(l)) return 'Sun';
+  return 'Other';
+}
+
+function upcomingFriday(from) {
+  const d = new Date(from);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diff = day <= 5 ? (5 - day) : (12 - day);
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+function formatWeekLabel(fridayDate) {
+  const fri = new Date(fridayDate);
+  const sun = new Date(fri); sun.setDate(fri.getDate() + 2);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fm = monthNames[fri.getMonth()], sm = monthNames[sun.getMonth()];
+  const fd = fri.getDate(), sd = sun.getDate(), yr = sun.getFullYear();
+  return fm === sm ? `Week of ${fm} ${fd}\u2013${sd}, ${yr}` : `Week of ${fm} ${fd}\u2013${sm} ${sd}, ${yr}`;
+}
+function dayDateLabel(day) {
+  const map = { Fri: 0, Sat: 1, Sun: 2 };
+  if (!state.week.weekendDate || !(day in map)) return day;
+  const base = new Date(state.week.weekendDate + 'T00:00:00');
+  base.setDate(base.getDate() + map[day]);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${day}, ${monthNames[base.getMonth()]} ${base.getDate()}`;
+}
+function useUpcomingWeekend() {
+  if (!requireLead()) return;
+  const fri = upcomingFriday(new Date());
+  state.week.weekendDate = fri.toISOString().slice(0, 10);
+  state.week.label = formatWeekLabel(fri);
+  saveState(); renderAllShiftLists();
+  toast('Set to the upcoming Fri\u2013Sun');
+}
 
 function freshState() {
   return {
     managers: [],
     history: [],
+    shop: defaultShopItems.map(i => ({ ...i })),
+    pointsLog: [],
     week: {
       label: '',
-      tier1: defaultTier1.map(t => ({ id: uid(), label: t })),
+      weekendDate: null,
+      tier1: defaultTier1.map(t => ({ id: uid(), label: t.label, day: t.day })),
       tier1b: [],
-      redgym: defaultRedgym.map(t => ({ id: uid(), label: t })),
-      sac: defaultSac.map(t => ({ id: uid(), label: t })),
-      event: { name: 'Badger Bash', active: false, count: 4, volunteers: [] },
+      redgym: defaultRedgym.map(t => ({ id: uid(), label: t.label, day: t.day })),
+      sac: defaultSac.map(t => ({ id: uid(), label: t.label, day: t.day })),
+      events: [{ id: uid(), name: 'Badger Bash', active: false, count: 4, volunteers: [] }],
       noDoubleBook: true
     },
     results: null
   };
 }
 
-let state = loadState() || freshState();
+let state = loadLocalCache() || freshState();
 // --- migrations from earlier versions ---
 delete state.settings;
-if (!Array.isArray(state.week.redgym)) state.week.redgym = defaultRedgym.map(t => ({ id: uid(), label: t }));
-if (!Array.isArray(state.week.sac)) state.week.sac = defaultSac.map(t => ({ id: uid(), label: t }));
-if (state.week.bash && !state.week.event) {
+if (!state.shop) state.shop = defaultShopItems.map(i => ({ ...i }));
+if (!state.pointsLog) state.pointsLog = [];
+if (state.week.weekendDate === undefined) state.week.weekendDate = null;
+if (!Array.isArray(state.week.redgym)) state.week.redgym = defaultRedgym.map(t => ({ id: uid(), label: t.label, day: t.day }));
+if (!Array.isArray(state.week.sac)) state.week.sac = defaultSac.map(t => ({ id: uid(), label: t.label, day: t.day }));
+if (state.week.bash && !state.week.event && !state.week.events) {
   state.week.event = { name: 'Badger Bash', active: state.week.bash.active, count: state.week.bash.count, volunteers: state.week.bash.volunteers };
   delete state.week.bash;
 }
-if (!state.week.event) state.week.event = { name: 'Badger Bash', active: false, count: 4, volunteers: [] };
-if (state.managers) state.managers.forEach(m => { delete m.lastRank; if (m.credit === undefined) m.credit = 0; });
+if (state.week.event && !state.week.events) {
+  state.week.events = [{ id: uid(), ...state.week.event }];
+  delete state.week.event;
+}
+if (!state.week.events || !state.week.events.length) state.week.events = [{ id: uid(), name: 'Badger Bash', active: false, count: 4, volunteers: [] }];
+['tier1', 'tier1b', 'redgym', 'sac'].forEach(key => {
+  (state.week[key] || []).forEach(s => { if (!s.day) s.day = inferDay(s.label); });
+});
+if (state.managers) state.managers.forEach(m => {
+  delete m.lastRank;
+  if (m.credit === undefined) m.credit = 0;
+  if (m.points === undefined) m.points = 0;
+  if (m.skipNext === undefined) m.skipNext = false;
+  if (m.swapInsurance === undefined) m.swapInsurance = 0;
+});
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -514,25 +826,40 @@ function renderRoster() {
       <td class="num">${(m.credit || 0).toFixed(1)}</td>
       <td><span class="weight-pill">weight ${w}</span></td>
       <td style="text-align:right;">
-        <button class="ghost" onclick="overrideWeight('${m.id}')">Override</button>
-        <button class="danger-ghost" onclick="removeManager('${m.id}')">Remove</button>
+        <button class="ghost lead-only" onclick="overrideWeight('${m.id}')">Override</button>
+        <button class="danger-ghost lead-only" onclick="removeManager('${m.id}')">Remove</button>
       </td>`;
     body.appendChild(tr);
   });
 }
-function addManager() {
+async function addManager() {
+  if (!requireLead()) return;
   const input = document.getElementById('new-name');
   const name = input.value.trim();
   if (!name) return;
-  state.managers.push({ id: uid(), name, override: null, credit: 0 });
+  const local = { id: uid(), name, override: null, credit: 0, points: 0, skipNext: false, swapInsurance: 0 };
+  state.managers.push(local);
   input.value = '';
-  saveState(); renderRoster();
+  renderRoster();
+  if (sb) {
+    const { data, error } = await sb.rpc('rpc_add_manager', { p_token: session.token, p_name: name });
+    if (error) { toast('Could not save to server: ' + error.message); }
+    else { local.id = data.id; saveState(); renderRoster(); }
+  } else {
+    saveState();
+  }
 }
-function removeManager(id) {
+async function removeManager(id) {
+  if (!requireLead()) return;
   state.managers = state.managers.filter(m => m.id !== id);
-  saveState(); renderRoster();
+  renderRoster();
+  if (sb) {
+    const { error } = await sb.rpc('rpc_remove_manager', { p_token: session.token, p_id: id });
+    if (error) toast('Could not delete on server: ' + error.message);
+  }
 }
 function overrideWeight(id) {
+  if (!requireLead()) return;
   const m = state.managers.find(x => x.id === id);
   const val = prompt(`Manual weight override for ${m.name}\n(leave blank to go back to automatic weighting)`, m.override ?? '');
   if (val === null) return;
@@ -540,29 +867,34 @@ function overrideWeight(id) {
   saveState(); renderRoster();
 }
 function resetWeights() {
+  if (!requireLead()) return;
   if (!confirm("Reset everyone's weighting modifier back to neutral? This starts a fresh season without deleting your saved history log below.")) return;
   state.managers.forEach(m => { m.credit = 0; });
   saveState(); renderRoster();
   toast('Weighting reset to neutral for everyone');
 }
-function importRoster(e) {
+async function importRoster(e) {
+  if (!requireLead()) { e.target.value = ''; return; }
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     const text = String(reader.result || '');
     const names = text.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
     const existing = new Set(state.managers.map(m => m.name.toLowerCase()));
-    let added = 0;
-    names.forEach(name => {
-      if (!existing.has(name.toLowerCase())) {
-        state.managers.push({ id: uid(), name, override: null, credit: 0 });
-        existing.add(name.toLowerCase());
-        added++;
+    const toAdd = names.filter(name => !existing.has(name.toLowerCase()) && existing.add(name.toLowerCase()));
+    if (!toAdd.length) { toast('No new names found in that file'); return; }
+    toAdd.forEach(name => state.managers.push({ id: uid(), name, override: null, credit: 0, points: 0, skipNext: false, swapInsurance: 0 }));
+    renderRoster();
+    if (sb) {
+      const { data, error } = await sb.rpc('rpc_import_managers', { p_token: session.token, p_names: toAdd });
+      if (error) { toast('Some names could not be saved to the server: ' + error.message); }
+      else {
+        data.forEach(row => { const m = state.managers.find(x => x.name === row.name); if (m) m.id = row.id; });
+        saveState(); renderRoster();
       }
-    });
-    saveState(); renderRoster();
-    toast(added ? `${added} name${added === 1 ? '' : 's'} added` : 'No new names found in that file');
+    } else { saveState(); }
+    toast(`${toAdd.length} name${toAdd.length === 1 ? '' : 's'} added`);
   };
   reader.onerror = () => toast('Could not read that file');
   reader.readAsText(file);
@@ -581,24 +913,36 @@ function renderShiftList(containerId, arrKey) {
     const row = document.createElement('div');
     row.className = 'shift-line';
     row.innerHTML = `
+      <select onchange="updateShiftDay('${arrKey}','${shift.id}', this.value)" style="width:82px;">
+        ${['Fri', 'Sat', 'Sun', 'Other'].map(d => `<option value="${d}" ${shift.day === d ? 'selected' : ''}>${d}</option>`).join('')}
+      </select>
       <input type="text" value="${escapeHtml(shift.label)}" onchange="updateShiftLabel('${arrKey}','${shift.id}', this.value)">
       <button class="danger-ghost" onclick="removeShift('${arrKey}','${shift.id}')">Remove</button>`;
     container.appendChild(row);
   });
 }
 function updateShiftLabel(arrKey, id, val) {
+  if (!requireLead()) { renderAllShiftLists(); return; }
   const s = state.week[arrKey].find(x => x.id === id);
   if (s) s.label = val;
   saveState();
 }
+function updateShiftDay(arrKey, id, val) {
+  if (!requireLead()) { renderAllShiftLists(); return; }
+  const s = state.week[arrKey].find(x => x.id === id);
+  if (s) s.day = val;
+  saveState();
+}
 function removeShift(arrKey, id) {
+  if (!requireLead()) return;
   state.week[arrKey] = state.week[arrKey].filter(x => x.id !== id);
   saveState(); renderAllShiftLists();
 }
 function addShift(arrKey) {
+  if (!requireLead()) return;
   const label = prompt('Slot name (e.g. "Mon US Close")');
   if (!label || !label.trim()) return;
-  state.week[arrKey].push({ id: uid(), label: label.trim() });
+  state.week[arrKey].push({ id: uid(), label: label.trim(), day: inferDay(label) });
   saveState(); renderAllShiftLists();
 }
 function renderAllShiftLists() {
@@ -607,43 +951,110 @@ function renderAllShiftLists() {
   renderShiftList('redgym-list', 'redgym');
   renderShiftList('sac-list', 'sac');
   document.getElementById('week-label').value = state.week.label || '';
-  document.getElementById('event-active').checked = state.week.event.active;
-  document.getElementById('event-body').style.display = state.week.event.active ? 'block' : 'none';
-  document.getElementById('event-name').value = state.week.event.name;
-  document.getElementById('event-count').value = state.week.event.count;
+  document.getElementById('week-date').value = state.week.weekendDate || '';
   document.getElementById('no-double-book').checked = state.week.noDoubleBook;
-  renderEventVolunteers();
+  renderEventsList();
 }
-function renderEventVolunteers() {
-  const c = document.getElementById('event-volunteers');
+
+function renderEventsList() {
+  const container = document.getElementById('events-list');
+  container.innerHTML = '';
+  state.week.events.forEach(ev => {
+    const block = document.createElement('div');
+    block.className = 'tier-block';
+    block.style.marginBottom = '10px';
+    block.innerHTML = `
+      <div class="tier-head">
+        <input type="text" value="${escapeHtml(ev.name)}" placeholder="Event name" style="min-width:180px;" onchange="updateEventField('${ev.id}','name', this.value)">
+        <label class="checkbox-row"><input type="checkbox" ${ev.active ? 'checked' : ''} onchange="updateEventActive('${ev.id}', this.checked)"> Happening this week</label>
+        <button class="danger-ghost" onclick="removeEvent('${ev.id}')">Remove event</button>
+      </div>
+      <div class="tier-body" style="${ev.active ? '' : 'display:none;'}" id="event-body-${ev.id}">
+        <div class="row" style="margin-bottom:12px;">
+          <label style="font-size:14.5px;color:var(--ink-soft);">Slots needed</label>
+          <input type="number" value="${ev.count}" min="1" max="12" style="width:70px;" onchange="updateEventField('${ev.id}','count', Number(this.value)||1)">
+        </div>
+        <p class="hint" style="margin-bottom:10px;">Volunteers (already signed up):</p>
+        <div id="event-volunteers-${ev.id}"></div>
+        <button class="secondary" onclick="addEventVolunteer('${ev.id}')">+ Add volunteer</button>
+      </div>`;
+    container.appendChild(block);
+    renderEventVolunteers(ev.id);
+  });
+}
+function renderEventVolunteers(eventId) {
+  const c = document.getElementById('event-volunteers-' + eventId);
+  if (!c) return;
+  const ev = state.week.events.find(e => e.id === eventId);
   c.innerHTML = '';
-  state.week.event.volunteers.forEach((v, i) => {
+  ev.volunteers.forEach((v, i) => {
     const row = document.createElement('div');
     row.className = 'shift-line';
     row.innerHTML = `
-      <input type="text" value="${escapeHtml(v)}" onchange="updateEventVolunteer(${i}, this.value)">
-      <button class="danger-ghost" onclick="removeEventVolunteer(${i})">Remove</button>`;
+      <input type="text" value="${escapeHtml(v)}" onchange="updateEventVolunteer('${eventId}', ${i}, this.value)">
+      <button class="danger-ghost" onclick="removeEventVolunteer('${eventId}', ${i})">Remove</button>`;
     c.appendChild(row);
   });
 }
-function addEventVolunteer() {
+function addEvent() {
+  if (!requireLead()) return;
+  state.week.events.push({ id: uid(), name: 'New Event', active: true, count: 4, volunteers: [] });
+  saveState(); renderEventsList();
+}
+function removeEvent(id) {
+  if (!requireLead()) return;
+  state.week.events = state.week.events.filter(e => e.id !== id);
+  if (!state.week.events.length) state.week.events.push({ id: uid(), name: 'Badger Bash', active: false, count: 4, volunteers: [] });
+  saveState(); renderEventsList();
+}
+function updateEventField(id, field, val) {
+  if (!requireLead()) { renderEventsList(); return; }
+  const ev = state.week.events.find(e => e.id === id);
+  if (ev) ev[field] = field === 'name' ? (val.trim() || 'Special Event') : val;
+  saveState();
+}
+function updateEventActive(id, checked) {
+  if (!requireLead()) { renderEventsList(); return; }
+  const ev = state.week.events.find(e => e.id === id);
+  if (ev) ev.active = checked;
+  saveState(); renderEventsList();
+}
+function addEventVolunteer(eventId) {
+  if (!requireLead()) return;
   const name = prompt('Volunteer name');
   if (!name || !name.trim()) return;
-  state.week.event.volunteers.push(name.trim());
-  saveState(); renderEventVolunteers();
+  const ev = state.week.events.find(e => e.id === eventId);
+  ev.volunteers.push(name.trim());
+  saveState(); renderEventVolunteers(eventId);
 }
-function updateEventVolunteer(i, val) { state.week.event.volunteers[i] = val; saveState(); }
-function removeEventVolunteer(i) { state.week.event.volunteers.splice(i, 1); saveState(); renderEventVolunteers(); }
+function updateEventVolunteer(eventId, i, val) {
+  if (!requireLead()) { renderEventVolunteers(eventId); return; }
+  const ev = state.week.events.find(e => e.id === eventId);
+  ev.volunteers[i] = val; saveState();
+}
+function removeEventVolunteer(eventId, i) {
+  if (!requireLead()) return;
+  const ev = state.week.events.find(e => e.id === eventId);
+  ev.volunteers.splice(i, 1); saveState(); renderEventVolunteers(eventId);
+}
 
-document.getElementById('week-label').addEventListener('input', e => { state.week.label = e.target.value; saveState(); });
-document.getElementById('event-active').addEventListener('change', e => {
-  state.week.event.active = e.target.checked;
-  document.getElementById('event-body').style.display = e.target.checked ? 'block' : 'none';
-  saveState();
+document.getElementById('week-label').addEventListener('input', e => {
+  if (!requireLead()) { e.target.value = state.week.label || ''; return; }
+  state.week.label = e.target.value; saveState();
 });
-document.getElementById('event-name').addEventListener('change', e => { state.week.event.name = e.target.value.trim() || 'Special Event'; saveState(); });
-document.getElementById('event-count').addEventListener('change', e => { state.week.event.count = Number(e.target.value) || 4; saveState(); });
-document.getElementById('no-double-book').addEventListener('change', e => { state.week.noDoubleBook = e.target.checked; saveState(); });
+document.getElementById('week-date').addEventListener('change', e => {
+  if (!requireLead()) { e.target.value = state.week.weekendDate || ''; return; }
+  if (!e.target.value) return;
+  const [y, mo, d] = e.target.value.split('-').map(Number);
+  const picked = new Date(y, mo - 1, d);
+  state.week.weekendDate = e.target.value;
+  state.week.label = formatWeekLabel(picked);
+  saveState(); renderAllShiftLists();
+});
+document.getElementById('no-double-book').addEventListener('change', e => {
+  if (!requireLead()) { e.target.checked = state.week.noDoubleBook; return; }
+  state.week.noDoubleBook = e.target.checked; saveState();
+});
 
 // ---------- weighted draft engine ----------
 function weightedPickAndRemove(pool) {
@@ -657,11 +1068,23 @@ function weightedPickAndRemove(pool) {
   return pool.splice(pool.length - 1, 1)[0];
 }
 
+function buildingFor(tier, label) {
+  if (tier === 3) return 'Red Gym';
+  if (tier === 4) return 'SAC';
+  const l = String(label || '').toUpperCase();
+  if (l.includes('MU')) return 'Memorial Union';
+  if (l.includes('US')) return 'Union South';
+  return 'Weekend';
+}
+
 function runDraw() {
+  if (!requireLead()) return;
   if (state.managers.length === 0) { toast('Add building managers to the roster first'); return; }
   closeModal();
   const noDouble = state.week.noDoubleBook;
-  let pool = state.managers.slice();
+  let pool = state.managers.filter(m => !m.skipNext);
+  const skipped = state.managers.filter(m => m.skipNext);
+  if (skipped.length) toast(`${skipped.map(m => m.name).join(', ')} sitting out this draft (Guaranteed Weekend Off)`);
   const drawOrder = [];
   const results = [];
 
@@ -681,14 +1104,15 @@ function runDraw() {
       id: uid(), tier: 1, shiftLabel: `Weekend pick ${idx + 1}`,
       assignedName: picked ? picked.name : '(not enough people)',
       workingName: picked ? picked.name : '(not enough people)',
-      swapped: false, swapEligible: idx < 10, candidatePool: snapshot, pickedOption: null
+      swapped: false, swapEligible: idx < 10, candidatePool: snapshot, pickedOption: null,
+      day: shift.day || 'Other', building: buildingFor(1, shift.label)
     });
   });
 
-  if (state.week.event.active) {
-    const eventName = state.week.event.name || 'Special Event';
-    const need = state.week.event.count;
-    const volunteers = state.week.event.volunteers.filter(v => v.trim());
+  state.week.events.filter(ev => ev.active).forEach(ev => {
+    const eventName = ev.name || 'Special Event';
+    const need = ev.count;
+    const volunteers = ev.volunteers.filter(v => v.trim());
     const filled = [];
     volunteers.slice(0, need).forEach(v => filled.push({ name: v, viaVolunteer: true }));
     if (noDouble) pool = pool.filter(m => !volunteers.includes(m.name));
@@ -699,12 +1123,12 @@ function runDraw() {
     }
     filled.forEach(f => {
       results.push({
-        id: uid(), tier: 2, shiftLabel: eventName + (f.viaVolunteer ? ' (volunteer)' : ''),
+        id: uid(), tier: 2, eventName, shiftLabel: eventName + (f.viaVolunteer ? ' (volunteer)' : ''),
         assignedName: f.name, workingName: f.name, swapped: false, swapEligible: false,
         candidatePool: f.viaVolunteer ? null : f.candidatePool
       });
     });
-  }
+  });
 
   state.week.redgym.forEach((shift, idx) => {
     const snapshot = pool.map(m => m.name);
@@ -713,7 +1137,8 @@ function runDraw() {
       id: uid(), tier: 3, shiftLabel: `Red Gym pick ${idx + 1}`,
       assignedName: picked ? picked.name : '(not enough people)',
       workingName: picked ? picked.name : '(not enough people)',
-      swapped: false, swapEligible: false, candidatePool: snapshot, pickedOption: null
+      swapped: false, swapEligible: false, candidatePool: snapshot, pickedOption: null,
+      day: shift.day || 'Other', building: 'Red Gym'
     });
   });
 
@@ -724,7 +1149,8 @@ function runDraw() {
       id: uid(), tier: 4, shiftLabel: `SAC pick ${idx + 1}`,
       assignedName: picked ? picked.name : '(not enough people)',
       workingName: picked ? picked.name : '(not enough people)',
-      swapped: false, swapEligible: false, candidatePool: snapshot, pickedOption: null
+      swapped: false, swapEligible: false, candidatePool: snapshot, pickedOption: null,
+      day: shift.day || 'Other', building: 'SAC'
     });
   });
 
@@ -732,8 +1158,13 @@ function runDraw() {
     drawOrder, rows: results, revealedIndex: -1,
     weekendOptions: tier1all.map(s => s.label),
     redgymOptions: state.week.redgym.map(s => s.label),
-    sacOptions: state.week.sac.map(s => s.label)
+    sacOptions: state.week.sac.map(s => s.label),
+    weekendMeta: tier1all.map(s => ({ label: s.label, day: s.day || 'Other', building: buildingFor(1, s.label) })),
+    redgymMeta: state.week.redgym.map(s => ({ label: s.label, day: s.day || 'Other', building: 'Red Gym' })),
+    sacMeta: state.week.sac.map(s => ({ label: s.label, day: s.day || 'Other', building: 'SAC' }))
   };
+  // Guaranteed Weekend Off is one-time: clear it now that this draft has honored it.
+  skipped.forEach(m => { m.skipNext = false; });
   saveState();
   renderResults();
   document.getElementById('results-card').style.display = 'block';
@@ -752,8 +1183,10 @@ function everyoneOnWheelSoFar() {
   const s = new Set();
   const idx = state.results.revealedIndex;
   state.results.rows.forEach((r, i) => { if (i <= idx) { s.add(r.workingName); s.add(r.assignedName); } });
-  if (state.week.noDoubleBook && state.week.event.active) {
-    state.week.event.volunteers.forEach(v => { if (v.trim()) s.add(v.trim()); });
+  if (state.week.noDoubleBook) {
+    state.week.events.filter(ev => ev.active).forEach(ev => {
+      ev.volunteers.forEach(v => { if (v.trim()) s.add(v.trim()); });
+    });
   }
   return s;
 }
@@ -768,7 +1201,9 @@ function tierOptionsFor(tier) {
 function buildResultRow(r, i) {
   const row = document.createElement('div');
   row.className = 'result-row';
-  const swapBtn = r.swapEligible ? `<button class="ghost" onclick="openSwap('${r.id}')">Swap</button>` : '';
+  const assignedManager = state.managers.find(m => m.name === r.assignedName);
+  const hasInsurance = !r.swapEligible && r.tier === 1 && assignedManager && assignedManager.swapInsurance > 0;
+  const swapBtn = (r.swapEligible || hasInsurance) ? `<button class="ghost" onclick="openSwap('${r.id}')">Swap${hasInsurance ? ' (insured)' : ''}</button>` : '';
 
   let pickerHtml = '';
   const options = tierOptionsFor(r.tier);
@@ -805,24 +1240,46 @@ function renderStatusBoard() {
   const board = document.getElementById('status-board');
   if (!board) return;
   if (!state.results) { board.innerHTML = ''; return; }
-  const idx = state.results.revealedIndex;
   const rows = state.results.rows;
+  const metas = [
+    ...(state.results.weekendMeta || []),
+    ...(state.results.redgymMeta || []),
+    ...(state.results.sacMeta || [])
+  ];
   let html = '';
 
-  [[1, 'Weekend', 'weekendOptions'], [3, 'Red Gym', 'redgymOptions'], [4, 'SAC', 'sacOptions']].forEach(([t, label, key]) => {
-    const options = state.results[key] || [];
-    if (!options.length) return;
-    const claimed = new Set(rows.filter(r => r.tier === t && r.pickedOption).map(r => r.pickedOption));
-    html += `<div class="status-group"><span class="status-label">${label}</span>` +
-      options.map(opt => `<span class="chip ${claimed.has(opt) ? 'chip-red' : 'chip-green'}">${escapeHtml(opt)}</span>`).join('') +
-      `</div>`;
-  });
+  if (metas.length) {
+    const claimed = new Set(rows.filter(r => (r.tier === 1 || r.tier === 3 || r.tier === 4) && r.pickedOption).map(r => r.pickedOption));
+    const dayOrder = ['Fri', 'Sat', 'Sun', 'Other'];
+    const days = dayOrder.filter(d => metas.some(m => m.day === d));
+    html += '<div class="day-card-row">';
+    days.forEach(day => {
+      const dayMetas = metas.filter(m => m.day === day);
+      const buildings = [...new Set(dayMetas.map(m => m.building))];
+      html += `<div class="day-card">
+        <div class="day-card-date">${escapeHtml(dayDateLabel(day))}</div>
+        ${buildings.map(b => `
+          <div class="day-section">
+            <div class="day-section-title">${escapeHtml(b)}</div>
+            <div class="day-section-chips">${dayMetas.filter(m => m.building === b).map(m => `<span class="chip ${claimed.has(m.label) ? 'chip-red' : 'chip-green'}">${escapeHtml(m.label)}</span>`).join('')}</div>
+          </div>`).join('')}
+      </div>`;
+    });
+    html += '</div>';
+  }
 
-  const eventTotal = rows.filter(r => r.tier === 2).length;
-  if (eventTotal) {
-    const remaining = rows.filter((r, i) => r.tier === 2 && i > idx).length;
-    html += `<div class="status-group"><span class="status-label">Special Event</span>
-      <span class="chip ${remaining > 0 ? 'chip-green' : 'chip-red'}">${remaining} of ${eventTotal} still open</span></div>`;
+  const idx = state.results.revealedIndex;
+  const tier2WithIndex = rows.map((r, i) => ({ r, i })).filter(x => x.r.tier === 2);
+  const eventNames = [...new Set(tier2WithIndex.map(x => x.r.eventName || 'Special Event'))];
+  if (eventNames.length) {
+    html += '<div class="status-group" style="margin-top:14px;">';
+    eventNames.forEach(name => {
+      const items = tier2WithIndex.filter(x => (x.r.eventName || 'Special Event') === name);
+      const total = items.length;
+      const remaining = items.filter(x => x.i > idx).length;
+      html += `<span class="status-label">${escapeHtml(name)}</span><span class="chip ${remaining > 0 ? 'chip-green' : 'chip-red'}">${remaining} of ${total} still open</span>`;
+    });
+    html += '</div>';
   }
   board.innerHTML = html;
 }
@@ -867,6 +1324,7 @@ function fireConfetti(host) {
 }
 
 function revealNext() {
+  if (!requireLead()) return;
   const idx = state.results.revealedIndex + 1;
   const row = state.results.rows[idx];
   const finalName = row.workingName;
@@ -917,6 +1375,7 @@ function finishReveal(idx) {
 }
 
 function skipToFull() {
+  if (!requireLead()) return;
   if (!state.results) return;
   closeModal();
   state.results.revealedIndex = state.results.rows.length - 1;
@@ -924,6 +1383,7 @@ function skipToFull() {
 }
 
 function openSwap(rowId) {
+  if (!requireLead()) return;
   const row = state.results.rows.find(r => r.id === rowId);
   const already = everyoneOnWheelSoFar();
   const pool = state.managers.filter(m => !already.has(m.name));
@@ -946,6 +1406,10 @@ function openSwap(rowId) {
 function doSwap(rowId, managerId) {
   const row = state.results.rows.find(r => r.id === rowId);
   const m = state.managers.find(x => x.id === managerId);
+  if (!row.swapEligible) {
+    const assignedManager = state.managers.find(x => x.name === row.assignedName);
+    if (assignedManager && assignedManager.swapInsurance > 0) assignedManager.swapInsurance -= 1;
+  }
   row.workingName = m.name; row.swapped = true;
   saveState(); renderResults(); closeModal();
   toast(`${m.name} is now covering that pick`);
@@ -953,7 +1417,8 @@ function doSwap(rowId, managerId) {
 
 function closeModal(e) { if (e && e.target !== e.currentTarget) return; document.getElementById('modal-root').innerHTML = ''; }
 
-function finalizeWeek() {
+async function finalizeWeek() {
+  if (!requireLead()) return;
   if (!state.results) return;
   if (!confirm("Save this week's draw order to history? This updates everyone's weighting.")) return;
 
@@ -968,28 +1433,32 @@ function finalizeWeek() {
     if (person) person.credit = Math.round(((person.credit || 0) + ((i + 1) - mid)) * 10) / 10;
   });
 
-  state.history.unshift({
-    id: uid(),
-    date: new Date().toISOString(),
-    label: state.week.label || 'Untitled week',
-    order,
-    weights: weightsUsed,
-    setup: {
-      weekendOptions: state.results.weekendOptions || [],
-      redgymOptions: state.results.redgymOptions || [],
-      sacOptions: state.results.sacOptions || [],
-      event: { name: state.week.event.name, count: state.week.event.count, active: state.week.event.active, volunteers: state.week.event.volunteers.slice() }
-    },
-    rows: state.results.rows.map(r => ({
-      shiftLabel: r.shiftLabel, tier: r.tier, workingName: r.workingName,
-      assignedName: r.assignedName, pickedOption: r.pickedOption, swapped: r.swapped
-    }))
-  });
+  const label = state.week.label || 'Untitled week';
+  const setup = {
+    weekendOptions: state.results.weekendOptions || [],
+    redgymOptions: state.results.redgymOptions || [],
+    sacOptions: state.results.sacOptions || [],
+    events: state.week.events.filter(ev => ev.active).map(ev => ({ name: ev.name, count: ev.count, volunteers: ev.volunteers.slice() }))
+  };
+  const rows = state.results.rows.map(r => ({
+    shiftLabel: r.shiftLabel, tier: r.tier, workingName: r.workingName,
+    assignedName: r.assignedName, pickedOption: r.pickedOption, swapped: r.swapped
+  }));
+
+  let historyId = uid();
+  if (sb) {
+    const { data, error } = await sb.rpc('rpc_insert_history', {
+      p_token: session.token, p_label: label, p_draw_order: order, p_weights: weightsUsed, p_setup: setup, p_rows: rows
+    });
+    if (error) toast('Could not save history to server: ' + error.message);
+    else historyId = data.id;
+  }
+  state.history.unshift({ id: historyId, date: new Date().toISOString(), label, order, weights: weightsUsed, setup, rows });
 
   state.week.tier1b = [];
-  state.week.event.active = false;
-  state.week.event.volunteers = [];
+  state.week.events.forEach(ev => { ev.active = false; ev.volunteers = []; });
   state.week.label = '';
+  state.week.weekendDate = null;
   state.results = null;
   saveState();
   renderRoster(); renderAllShiftLists();
@@ -1007,7 +1476,7 @@ function toggleWeekDetail(id) {
 function buildWeekDetailHtml(week) {
   const weightsText = (week.weights || []).map(w => `${escapeHtml(w.name)}: ${w.weight}`).join(', ') || 'not recorded';
   const setup = week.setup || {};
-  const ev = setup.event || {};
+  const events = setup.events || [];
   let picksText = 'not recorded';
   if (week.rows && week.rows.length) {
     picksText = week.rows.map(r => {
@@ -1023,7 +1492,7 @@ function buildWeekDetailHtml(week) {
       Weekend options: ${(setup.weekendOptions || []).map(escapeHtml).join(', ') || 'none'}<br>
       Red Gym options: ${(setup.redgymOptions || []).map(escapeHtml).join(', ') || 'none'}<br>
       SAC options: ${(setup.sacOptions || []).map(escapeHtml).join(', ') || 'none'}<br>
-      Special event: ${ev.active ? `${escapeHtml(ev.name || '')} (${ev.count} slots)` : 'not held'}
+      Events: ${events.length ? events.map(e => `${escapeHtml(e.name)} (${e.count} slots)`).join(', ') : 'none held'}
     </div></div>
     <div class="detail-block"><div class="detail-title">Picks</div><div class="detail-text">${picksText}</div></div>
   </div>`;
@@ -1085,20 +1554,292 @@ function renderHistory() {
     list.appendChild(div);
   });
 }
-function deleteHistory(id) {
+async function deleteHistory(id) {
+  if (!requireLead()) return;
   if (!confirm('Delete this saved week? This does not undo the weight changes it caused.')) return;
   state.history = state.history.filter(w => w.id !== id);
-  saveState(); renderHistory();
+  renderHistory();
+  if (sb) {
+    const { error } = await sb.rpc('rpc_delete_history', { p_token: session.token, p_id: id });
+    if (error) toast('Could not delete on server: ' + error.message);
+  }
 }
 
-function init() {
+// ---------- Brownie Points ----------
+const pointPresets = [
+  { label: 'Picked up an extra shift', delta: 10 },
+  { label: 'Shoutout from another department', delta: 15 },
+  { label: 'Worked a special event', delta: 15 },
+  { label: 'Great night report', delta: 5 },
+  { label: 'Unexcused absence', delta: -20 },
+  { label: 'Late arrival', delta: -10 },
+  { label: "Didn't save the night report", delta: -10 }
+];
+
+function renderPoints() {
+  const body = document.getElementById('points-body');
+  body.innerHTML = '';
+  document.getElementById('points-empty').style.display = state.managers.length ? 'none' : 'block';
+  state.managers.slice().sort((a, b) => (b.points || 0) - (a.points || 0)).forEach(m => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="roster-name">${escapeHtml(m.name)}</td>
+      <td><span class="points-balance">${m.points || 0} pts</span></td>
+      <td style="text-align:right;"><button class="secondary" onclick="openAdjustPoints('${m.id}')">Adjust</button></td>`;
+    body.appendChild(tr);
+  });
+  renderPointsLog();
+}
+function renderPointsLog() {
+  const list = document.getElementById('points-log');
+  list.innerHTML = '';
+  const entries = state.pointsLog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 20);
+  document.getElementById('points-log-empty').style.display = entries.length ? 'none' : 'block';
+  entries.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'log-entry';
+    const cls = e.delta >= 0 ? 'delta-pos' : 'delta-neg';
+    const sign = e.delta >= 0 ? '+' : '';
+    div.innerHTML = `<span class="who">${escapeHtml(e.name)}</span> <span class="${cls}">${sign}${e.delta} pts</span> &mdash; ${escapeHtml(e.reason)}<span class="when">${new Date(e.date).toLocaleString()}</span>`;
+    list.appendChild(div);
+  });
+}
+function openAdjustPoints(managerId) {
+  if (!requireLead()) return;
+  const m = state.managers.find(x => x.id === managerId);
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Adjust points &mdash; ${escapeHtml(m.name)}</h3>
+    <p class="hint">Current balance: ${m.points || 0} pts</p>
+    <select id="adjust-preset" style="width:100%;margin-bottom:10px;">
+      <option value="">Custom amount&hellip;</option>
+      ${pointPresets.map((p, i) => `<option value="${i}">${p.delta > 0 ? '+' : ''}${p.delta} &mdash; ${escapeHtml(p.label)}</option>`).join('')}
+    </select>
+    <div class="row" style="margin-bottom:10px;">
+      <input type="number" id="adjust-amount" placeholder="Amount (+/-)" style="width:120px;">
+      <input type="text" id="adjust-reason" placeholder="Reason" style="flex:1;min-width:160px;">
+    </div>
+    <div class="row">
+      <button class="accent" onclick="submitAdjustPoints('${managerId}')">Apply</button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+  document.getElementById('adjust-preset').addEventListener('change', e => {
+    if (e.target.value === '') return;
+    const p = pointPresets[Number(e.target.value)];
+    document.getElementById('adjust-amount').value = p.delta;
+    document.getElementById('adjust-reason').value = p.label;
+  });
+}
+async function submitAdjustPoints(managerId) {
+  const m = state.managers.find(x => x.id === managerId);
+  const amount = Number(document.getElementById('adjust-amount').value);
+  const reason = document.getElementById('adjust-reason').value.trim();
+  if (!amount || !reason) { toast('Enter an amount and a reason'); return; }
+  m.points = (m.points || 0) + amount;
+  saveState();
+  const entry = { id: uid(), date: new Date().toISOString(), name: m.name, delta: amount, reason };
+  state.pointsLog.unshift(entry);
+  renderPoints(); closeModal();
+  toast(`${amount > 0 ? '+' : ''}${amount} pts for ${m.name}`);
+  if (sb) {
+    const { error } = await sb.rpc('rpc_insert_points_log', { p_token: session.token, p_manager_name: m.name, p_delta: amount, p_reason: reason });
+    if (error) toast('Could not save to server: ' + error.message);
+  }
+}
+
+// ---------- Brownie Shop ----------
+function shopIcon(key) {
+  const attrs = 'width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  const icons = {
+    star: `<path d="M12 2l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 17l-5.9 3.2 1.2-6.6L2.5 9l6.6-.9L12 2z"/>`,
+    calendar: `<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M9 14.5l5.5 5.5M14.5 14.5L9 20"/>`,
+    shield: `<path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-4z"/>`,
+    clock: `<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>`,
+    brownie: `<rect x="4" y="9" width="16" height="10" rx="2"/><path d="M4 9l2-4h12l2 4"/><circle cx="9" cy="14" r="1" fill="var(--accent-bright)"/><circle cx="15" cy="14" r="1" fill="var(--accent-bright)"/><circle cx="12" cy="16.5" r="1" fill="var(--accent-bright)"/>`,
+    gift: `<rect x="4" y="8" width="16" height="12" rx="1"/><path d="M4 12h16M12 8v12M8 8a2 2 0 010-4c1.5 0 2.5 2 4 4M16 8a2 2 0 000-4c-1.5 0-2.5 2-4 4"/>`
+  };
+  return `<svg ${attrs}>${icons[key] || icons.gift}</svg>`;
+}
+function renderShop() {
+  const grid = document.getElementById('shop-grid');
+  grid.innerHTML = '';
+  state.shop.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'shop-card';
+    card.innerHTML = `
+      <div class="shop-icon">${shopIcon(item.icon)}</div>
+      <div class="shop-name">${escapeHtml(item.name)}</div>
+      <div class="shop-desc">${escapeHtml(item.desc)}</div>
+      <div class="row" style="justify-content:space-between;align-items:center;">
+        <span class="shop-cost">${item.cost} pts</span>
+        <div class="row" style="gap:6px;">
+          <button class="ghost" onclick="removeShopItem('${item.id}')">Remove</button>
+          <button class="accent" onclick="openRedeem('${item.id}')">Redeem</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+async function removeShopItem(id) {
+  if (!requireLead()) return;
+  if (!confirm('Remove this item from the shop?')) return;
+  state.shop = state.shop.filter(i => i.id !== id);
+  renderShop();
+  if (sb) {
+    const { error } = await sb.rpc('rpc_remove_shop_item', { p_token: session.token, p_id: id });
+    if (error) toast('Could not delete on server: ' + error.message);
+  }
+}
+async function addShopItem() {
+  if (!requireLead()) return;
+  const name = prompt('Item name');
+  if (!name || !name.trim()) return;
+  const cost = Number(prompt('Point cost', '50'));
+  if (!cost || cost <= 0) return;
+  const desc = prompt('Short description', '') || '';
+  const local = { id: uid(), name: name.trim(), desc, cost, icon: 'gift', effect: 'honor' };
+  state.shop.push(local);
+  renderShop();
+  if (sb) {
+    const { data, error } = await sb.rpc('rpc_add_shop_item', { p_token: session.token, p_name: local.name, p_description: desc, p_cost: cost, p_icon: 'gift', p_effect: 'honor' });
+    if (error) toast('Could not save to server: ' + error.message);
+    else { local.id = data.id; renderShop(); }
+  }
+  toast(`${local.name} added to the shop`);
+}
+function openRedeem(itemId) {
+  if (!requireLead()) return;
+  const item = state.shop.find(i => i.id === itemId);
+  if (!state.managers.length) { toast('Add building managers to the roster first'); return; }
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Redeem "${escapeHtml(item.name)}"</h3>
+    <p class="hint">${escapeHtml(item.desc)}</p>
+    <select id="redeem-who" style="width:100%;margin-bottom:10px;">
+      <option value="">Who's redeeming?</option>
+      ${state.managers.map(m => `<option value="${m.id}">${escapeHtml(m.name)} (${m.points || 0} pts)</option>`).join('')}
+    </select>
+    <div class="row">
+      <button class="accent" onclick="submitRedeem('${itemId}')">Confirm (${item.cost} pts)</button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+}
+async function submitRedeem(itemId) {
+  const item = state.shop.find(i => i.id === itemId);
+  const managerId = document.getElementById('redeem-who').value;
+  if (!managerId) { toast("Pick who's redeeming"); return; }
+  const m = state.managers.find(x => x.id === managerId);
+  if ((m.points || 0) < item.cost) { toast(`${m.name} needs ${item.cost - (m.points || 0)} more points`); return; }
+  m.points -= item.cost;
+  if (item.effect === 'creditBoost') m.credit = Math.round(((m.credit || 0) + 3) * 10) / 10;
+  if (item.effect === 'skipNext') m.skipNext = true;
+  if (item.effect === 'swapInsurance') m.swapInsurance = (m.swapInsurance || 0) + 1;
+  saveState();
+  const entry = { id: uid(), date: new Date().toISOString(), name: m.name, delta: -item.cost, reason: `Redeemed: ${item.name}` };
+  state.pointsLog.unshift(entry);
+  renderPoints(); renderRoster(); closeModal();
+  toast(`${m.name} redeemed ${item.name}`);
+  if (sb) {
+    const { error } = await sb.rpc('rpc_insert_points_log', { p_token: session.token, p_manager_name: m.name, p_delta: -item.cost, p_reason: `Redeemed: ${item.name}` });
+    if (error) toast('Could not save to server: ' + error.message);
+  }
+}
+
+async function loadFromSupabase() {
+  if (!sb) return;
+  try {
+    const [managersRes, shopRes, historyRes, pointsRes, weekRes, draftRes] = await Promise.all([
+      sb.from('managers').select('*').order('name'),
+      sb.from('shop_items').select('*').order('cost'),
+      sb.from('history_weeks').select('*').order('created_at', { ascending: false }),
+      sb.from('points_log').select('*').order('created_at', { ascending: false }).limit(50),
+      sb.from('week_config').select('*').eq('id', true).single(),
+      sb.from('draft_state').select('*').eq('id', true).single()
+    ]);
+
+    if (managersRes.data) {
+      state.managers = managersRes.data.map(r => ({
+        id: r.id, name: r.name, credit: Number(r.credit) || 0,
+        override: r.override === null || r.override === undefined ? null : Number(r.override),
+        points: r.points || 0, skipNext: !!r.skip_next, swapInsurance: r.swap_insurance || 0
+      }));
+    }
+    if (shopRes.data) {
+      state.shop = shopRes.data.map(r => ({ id: r.id, name: r.name, desc: r.description, cost: r.cost, icon: r.icon, effect: r.effect }));
+    }
+    if (historyRes.data) {
+      state.history = historyRes.data.map(r => ({
+        id: r.id, date: r.created_at, label: r.label, order: r.draw_order || [],
+        weights: r.weights || [], setup: r.setup || {}, rows: r.rows || []
+      }));
+    }
+    if (pointsRes.data) {
+      state.pointsLog = pointsRes.data.map(r => ({ id: r.id, date: r.created_at, name: r.manager_name, delta: r.delta, reason: r.reason }));
+    }
+    if (weekRes.data) {
+      const w = weekRes.data;
+      state.week.label = w.label || '';
+      state.week.weekendDate = w.weekend_date;
+      if (w.tier1 && w.tier1.length) state.week.tier1 = w.tier1;
+      state.week.tier1b = w.tier1b || [];
+      if (w.redgym && w.redgym.length) state.week.redgym = w.redgym;
+      if (w.sac && w.sac.length) state.week.sac = w.sac;
+      if (w.events && w.events.length) state.week.events = w.events;
+      state.week.noDoubleBook = w.no_double_book !== false;
+    }
+    if (draftRes.data && draftRes.data.is_active) {
+      const d = draftRes.data;
+      state.results = {
+        drawOrder: d.draw_order || [], rows: d.rows || [], revealedIndex: d.revealed_index,
+        weekendOptions: d.weekend_options || [], redgymOptions: d.redgym_options || [], sacOptions: d.sac_options || [],
+        weekendMeta: d.weekend_meta || [], redgymMeta: d.redgym_meta || [], sacMeta: d.sac_meta || []
+      };
+    } else {
+      state.results = null;
+    }
+
+    renderRoster(); renderAllShiftLists(); renderHistory(); renderPoints(); renderShop();
+    if (state.results) {
+      renderResults();
+      document.getElementById('results-card').style.display = 'block';
+    } else {
+      document.getElementById('results-card').style.display = 'none';
+    }
+  } catch (e) {
+    console.warn('initial load from server failed', e);
+    toast('Could not load live data. Showing local cache.');
+  }
+}
+
+function setupRealtime() {
+  if (!sb) return;
+  const channel = sb.channel('bm-drafts-sync');
+  ['managers', 'shop_items', 'history_weeks', 'points_log', 'week_config', 'draft_state'].forEach(t => {
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: t }, () => { loadFromSupabase(); });
+  });
+  channel.subscribe();
+}
+
+async function init() {
   renderRoster();
   renderAllShiftLists();
   renderHistory();
+  renderPoints();
+  renderShop();
+  updateAuthUI();
   if (state.results) {
     if (state.results.revealedIndex === undefined) state.results.revealedIndex = state.results.rows.length - 1;
     renderResults();
     document.getElementById('results-card').style.display = 'block';
+  }
+  if (sb) {
+    try { await restoreSession(); } catch (e) { console.warn('session restore failed', e); }
+    await loadFromSupabase();
+    setupRealtime();
+  } else {
+    toast('Supabase client failed to load; running from local storage only');
   }
 }
 init();
