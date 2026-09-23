@@ -38,7 +38,7 @@ body {
   line-height: 1.55;
   min-height: 100vh;
 }
-.wrap { max-width: 1040px; margin: 0 auto; padding: 30px 22px 90px; }
+.wrap { max-width: 1220px; margin: 0 auto; padding: 30px 22px 90px; }
 header.top {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 12px; flex-wrap: wrap;
@@ -73,25 +73,46 @@ body.signed-out #panel-draw .pick-input {
 }
 body.signed-out #panel-roster button,
 body.signed-out #panel-shifts button,
-body.signed-out #panel-draw button {
+body.signed-out #panel-draw button:not(#present-toggle-btn),
+body.signed-out #panel-shop button,
+body.signed-out #history-export-btn {
   display: none !important;
 }
+body.present-mode header.top,
+body.present-mode .sidebar,
+body.present-mode .view-only-banner,
+body.present-mode .brand-footer {
+  display: none !important;
+}
+body.present-mode .wrap { max-width: 100%; padding: 20px; }
+body.present-mode .stage-name { font-size: clamp(64px, 11vw, 140px); }
+body.present-mode .stage-card { padding: 60px 20px; }
 .view-only-banner {
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 10px 16px; margin-bottom: 18px; font-size: 13.5px; color: var(--ink-soft);
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
 }
-nav.tabs {
-  display: flex; gap: 4px; margin-bottom: 26px;
-  border-bottom: 1px solid var(--line); overflow-x: auto;
+.layout { display: flex; align-items: flex-start; gap: 28px; }
+.sidebar {
+  flex: 0 0 190px; display: flex; flex-direction: column; gap: 2px;
+  position: sticky; top: 20px; padding-right: 18px; border-right: 1px solid var(--line);
 }
-nav.tabs button {
-  background: none; border: none; font-family: 'Inter', sans-serif;
-  font-size: 16px; font-weight: 700; color: var(--ink-soft);
-  padding: 12px 16px; cursor: pointer;
-  border-bottom: 3px solid transparent; white-space: nowrap;
+.sidebar button {
+  background: none; border: none; border-left: 3px solid transparent; border-radius: 0 6px 6px 0;
+  font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700; color: var(--ink-soft);
+  padding: 11px 14px; cursor: pointer; text-align: left; white-space: nowrap;
 }
-nav.tabs button.active { color: var(--ink); border-bottom-color: var(--accent); }
+.sidebar button.active { color: var(--ink); background: var(--surface-2); border-left-color: var(--accent); }
+.main-content { flex: 1; min-width: 0; }
+@media (max-width: 780px) {
+  .layout { flex-direction: column; gap: 0; }
+  .sidebar {
+    flex-direction: row; flex-wrap: wrap; position: static; width: 100%;
+    border-right: none; border-bottom: 1px solid var(--line); padding-right: 0; padding-bottom: 10px; margin-bottom: 20px;
+  }
+  .sidebar button { border-left: none; border-bottom: 3px solid transparent; border-radius: 6px 6px 0 0; }
+  .sidebar button.active { border-bottom-color: var(--accent); }
+}
 .panel { display: none; }
 .panel.active { display: block; }
 
@@ -106,12 +127,12 @@ section.card h2 {
 section.card p.hint { color: var(--ink-soft); font-size: 14.5px; margin: 0 0 16px; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
-input[type=text], input[type=number], select {
+input[type=text], input[type=number], input[type=password], input[type=date], select {
   font-family: 'Inter', sans-serif; font-size: 15.5px; padding: 10px 12px;
   border: 1px solid var(--line); border-radius: 5px;
   background: var(--surface-2); color: var(--ink);
 }
-input[type=text]:focus, input[type=number]:focus, select:focus, button:focus-visible {
+input[type=text]:focus, input[type=number]:focus, input[type=password]:focus, input[type=date]:focus, select:focus, button:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 1px;
 }
 button {
@@ -279,19 +300,21 @@ tr:last-child td { border-bottom: none; }
     <div id="auth-widget" class="auth-widget"></div>
   </header>
 
-  <nav class="tabs">
-    <button class="tab-btn active" data-tab="roster">Roster</button>
-    <button class="tab-btn" data-tab="shifts">This Week's Draft</button>
-    <button class="tab-btn" data-tab="draw">Draw &amp; Reveal</button>
-    <button class="tab-btn" data-tab="history">History</button>
-    <button class="tab-btn" data-tab="points">Points</button>
-    <button class="tab-btn" data-tab="shop">Brownie Shop</button>
-  </nav>
-
   <div id="view-only-banner" class="view-only-banner" style="display:none;">
-    <span>Viewing live data. Sign in as a lead to run drafts, adjust points, or edit anything.</span>
+    <span>Sign in as a lead to run drafts, adjust points, or edit anything.</span>
     <button class="secondary" onclick="openSignIn()">Sign in</button>
   </div>
+
+  <div class="layout">
+    <nav class="sidebar">
+      <button class="tab-btn active" data-tab="roster">Roster</button>
+      <button class="tab-btn" data-tab="shifts">This Week's Draft</button>
+      <button class="tab-btn" data-tab="draw">Draw &amp; Reveal</button>
+      <button class="tab-btn" data-tab="history">History</button>
+      <button class="tab-btn lead-only" data-tab="points">Points</button>
+      <button class="tab-btn" data-tab="shop">Brownie Shop</button>
+    </nav>
+    <div class="main-content">
 
   <!-- ROSTER -->
   <div class="panel active" id="panel-roster">
@@ -403,6 +426,9 @@ tr:last-child td { border-bottom: none; }
 
   <!-- DRAW -->
   <div class="panel" id="panel-draw">
+    <div class="row" style="justify-content:flex-end; margin-bottom:10px;">
+      <button class="ghost" id="present-toggle-btn" onclick="togglePresentMode()">Full screen</button>
+    </div>
     <section class="card">
       <div class="row" style="justify-content:space-between;">
         <div>
@@ -433,7 +459,7 @@ tr:last-child td { border-bottom: none; }
     <section class="card">
       <div class="row" style="justify-content:space-between;">
         <h2 style="margin:0;">Past weeks</h2>
-        <button class="secondary" onclick="exportHistory()">Export history</button>
+        <button class="secondary" id="history-export-btn" onclick="exportHistory()">Export history</button>
       </div>
       <p class="hint">Each finalized week updates the weighting above. Click "More info" on any week for the full detail.</p>
       <div id="history-list"></div>
@@ -460,7 +486,7 @@ tr:last-child td { border-bottom: none; }
         <div class="big">No one on the roster yet</div>
         Add building managers from the Roster tab first.
       </div>
-      <p class="foot-note">Reading balances is open to everyone. Adjusting them requires signing in as a lead, enforced by the database itself, not just this page.</p>
+      <p class="foot-note">This tab is only visible to signed-in leads, to keep point changes out of public view.</p>
     </section>
     <section class="card">
       <h2>Recent activity</h2>
@@ -478,12 +504,15 @@ tr:last-child td { border-bottom: none; }
       <div class="row" style="justify-content:space-between;">
         <div>
           <h2 style="margin-bottom:2px;">Brownie Shop</h2>
-          <p class="hint" style="margin-bottom:0;">Redeem points for perks. A few have real effects on the next draft &mdash; most run on the honor system.</p>
+          <p class="hint" style="margin-bottom:0;">Redeem points for perks. Some are applied automatically; others are logged here for a lead to honor in person.</p>
         </div>
         <button class="secondary" onclick="addShopItem()">+ Add item</button>
       </div>
     </section>
     <div id="shop-grid" class="shop-grid"></div>
+  </div>
+
+    </div>
   </div>
 
   <footer class="brand-footer">
@@ -586,6 +615,8 @@ function updateAuthUI() {
   } else {
     el.innerHTML = `<button class="secondary" onclick="openSignIn()">Lead sign in</button>`;
     if (banner) banner.style.display = 'flex';
+    const pointsPanel = document.getElementById('panel-points');
+    if (pointsPanel && pointsPanel.classList.contains('active')) goToTab('roster');
   }
   renderRoster(); renderAllShiftLists();
   if (state.results) renderResults();
@@ -594,7 +625,6 @@ function openSignIn() {
   const modal = document.getElementById('modal-root');
   modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <h3>Lead sign in</h3>
-    <p class="hint">Only the 5 building manager leads have accounts.</p>
     <input type="text" id="signin-username" placeholder="Username" style="width:100%;margin-bottom:8px;" autocomplete="username">
     <input type="password" id="signin-password" placeholder="Password" style="width:100%;margin-bottom:10px;" autocomplete="current-password">
     <div class="row">
@@ -686,7 +716,6 @@ const defaultShopItems = [
   { id: 'boost', name: 'Front of the Line', desc: 'Adds a one-time credit boost applied immediately, raising your odds on the very next draft.', cost: 80, icon: 'star', effect: 'creditBoost' },
   { id: 'weekoff', name: 'Guaranteed Weekend Off', desc: 'Sit out the next draft entirely. You keep your credit for the week after.', cost: 150, icon: 'calendar', effect: 'skipNext' },
   { id: 'swapins', name: 'Swap Insurance', desc: "Guarantees a swap next time you're drafted, even outside the first 10 shifts.", cost: 60, icon: 'shield', effect: 'swapInsurance' },
-  { id: 'latepass', name: 'Late Pass', desc: 'Forgives one late arrival. Honor system \u2014 tell your lead you\'re cashing it in.', cost: 30, icon: 'clock', effect: 'honor' },
   { id: 'brownie', name: 'An Actual Brownie', desc: 'Redeem for a real brownie from the leads. The original brownie point.', cost: 20, icon: 'brownie', effect: 'honor' }
 ];
 
@@ -755,6 +784,7 @@ let state = loadLocalCache() || freshState();
 // --- migrations from earlier versions ---
 delete state.settings;
 if (!state.shop) state.shop = defaultShopItems.map(i => ({ ...i }));
+state.shop = state.shop.filter(i => i.id !== 'latepass' && i.name !== 'Late Pass');
 if (!state.pointsLog) state.pointsLog = [];
 if (state.week.weekendDate === undefined) state.week.weekendDate = null;
 if (!Array.isArray(state.week.redgym)) state.week.redgym = defaultRedgym.map(t => ({ id: uid(), label: t.label, day: t.day }));
@@ -796,6 +826,19 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
   });
+});
+function goToTab(tab) {
+  const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+  if (btn) btn.click();
+}
+
+// ---------- full-screen presentation mode for Draw & Reveal ----------
+function togglePresentMode() {
+  const on = document.body.classList.toggle('present-mode');
+  document.getElementById('present-toggle-btn').textContent = on ? 'Exit full screen' : 'Full screen';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('present-mode')) togglePresentMode();
 });
 
 // ---------- weighting (persistent modifier, carries over week to week) ----------
