@@ -37,17 +37,9 @@ Each person has a **credit** that persists across weeks instead of resetting. Af
 
 Leads can award or dock points (with a reason attached) for things like picking up a shift, a shoutout from another department, or an unexcused absence. Points are redeemable in the Brownie Shop for a handful of perks — some apply automatically (a credit boost, sitting out the next draft, swap insurance), others are just logged for a lead to honor in person (like an actual brownie). The **Points tab is only visible when signed in** — balances and point history stay out of public view on purpose, to keep it from turning into hallway drama. The Shop's catalog is publicly browsable, but redeeming, adding, or removing items requires a lead.
 
-## Signing in as a lead
-
-There's one shared lead account rather than individual logins per person — a deliberate choice to keep this simple, since it's a small trusted group running the actual meeting. It's a local account system built specifically for this app (not tied to email or any third-party login), and the only way in is signing in with that username and password — there's no self-serve signup. The first time it's used, the app forces a "set your own username and password" step before anything else works, so the shared temporary credentials get replaced immediately. Ask whoever's currently holding the login if you need it.
-
 ## Public vs. lead view
 
 Anyone with the link can see the roster, weights, this week's setup, the live draft as it's revealed, and past weeks' history — good for transparency. Actually changing anything (running a draft, editing the roster or shift setup, swapping a pick, adjusting or redeeming points, editing the shop) requires being signed in as a lead. That's enforced by the database itself, not just hidden in the page, so it holds even if someone pokes around in the browser's dev tools.
-
-## A note on where data lives
-
-Unlike earlier versions of this tool, there's now a real shared database (Supabase) behind it — the roster, shift setup, live draft state, history, and points all sync across every device in close to real time. The browser's local storage is only used as an offline fallback cache, not the source of truth. The API key embedded in the page is meant to be public (it's the same kind of key Supabase recommends for client-side apps); what actually protects the data is server-side access control, not keeping that key secret.
 
 ## Updating the tool
 
