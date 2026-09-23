@@ -62,6 +62,11 @@ h1 {
 }
 .auth-widget { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink-soft); }
 .auth-widget .who { color: var(--ink); font-weight: 700; }
+.key-hint {
+  display: inline-block; margin-left: 7px; padding: 1px 6px; border-radius: 4px;
+  border: 1px solid currentColor; opacity: 0.65; font-size: 0.8em; font-weight: 700;
+  vertical-align: middle; line-height: 1.5;
+}
 body.signed-out .lead-only { display: none !important; }
 body.signed-out #panel-roster input,
 body.signed-out #panel-roster select,
@@ -350,7 +355,7 @@ tr:last-child td { border-bottom: none; }
       <p class="hint">Pick the Friday of the weekend you're drafting for, or just use the upcoming one.</p>
       <div class="row" style="margin-bottom:10px;">
         <input type="date" id="week-date">
-        <button class="secondary" onclick="useUpcomingWeekend()">Use upcoming weekend</button>
+        <button class="secondary" onclick="useUpcomingWeekend()">Use next weekend</button>
       </div>
       <input type="text" id="week-label" placeholder="e.g. Week of Oct 3–5, 2026" style="width:280px;">
     </section>
@@ -625,10 +630,10 @@ function openSignIn() {
   const modal = document.getElementById('modal-root');
   modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <h3>Lead sign in</h3>
-    <input type="text" id="signin-username" placeholder="Username" style="width:100%;margin-bottom:8px;" autocomplete="username">
-    <input type="password" id="signin-password" placeholder="Password" style="width:100%;margin-bottom:10px;" autocomplete="current-password">
+    <input type="text" id="signin-username" placeholder="Username" style="width:100%;margin-bottom:8px;" autocomplete="username" onkeydown="if(event.key==='Enter') submitSignIn()">
+    <input type="password" id="signin-password" placeholder="Password" style="width:100%;margin-bottom:10px;" autocomplete="current-password" onkeydown="if(event.key==='Enter') submitSignIn()">
     <div class="row">
-      <button class="accent" onclick="submitSignIn()">Sign in</button>
+      <button class="accent" onclick="submitSignIn()">Sign in <span class="key-hint">&#9166;</span></button>
       <button class="ghost" onclick="closeModal()">Cancel</button>
     </div>
   </div></div>`;
@@ -670,10 +675,10 @@ function openForceReset() {
   modal.innerHTML = `<div class="modal-backdrop"><div class="modal">
     <h3>Set your username and password</h3>
     <p class="hint">This account still has a temporary password. Pick your own username and password before continuing.</p>
-    <input type="text" id="reset-username" placeholder="New username" style="width:100%;margin-bottom:8px;" value="${escapeHtml(session.username)}">
-    <input type="password" id="reset-password" placeholder="New password (8+ characters)" style="width:100%;margin-bottom:8px;">
-    <input type="password" id="reset-password2" placeholder="Confirm new password" style="width:100%;margin-bottom:10px;">
-    <button class="accent" onclick="submitForceReset()">Save and continue</button>
+    <input type="text" id="reset-username" placeholder="New username" style="width:100%;margin-bottom:8px;" value="${escapeHtml(session.username)}" onkeydown="if(event.key==='Enter') submitForceReset()">
+    <input type="password" id="reset-password" placeholder="New password (8+ characters)" style="width:100%;margin-bottom:8px;" onkeydown="if(event.key==='Enter') submitForceReset()">
+    <input type="password" id="reset-password2" placeholder="Confirm new password" style="width:100%;margin-bottom:10px;" onkeydown="if(event.key==='Enter') submitForceReset()">
+    <button class="accent" onclick="submitForceReset()">Save and continue <span class="key-hint">&#9166;</span></button>
   </div></div>`;
 }
 async function submitForceReset() {
@@ -727,12 +732,17 @@ function inferDay(label) {
   return 'Other';
 }
 
-function upcomingFriday(from) {
+function closestFriday(from) {
   const d = new Date(from);
   d.setHours(0, 0, 0, 0);
   const day = d.getDay();
   const diff = day <= 5 ? (5 - day) : (12 - day);
   d.setDate(d.getDate() + diff);
+  return d;
+}
+function nextWeekendFriday(from) {
+  const d = closestFriday(from);
+  d.setDate(d.getDate() + 7); // scheduling happens a week ahead, so skip past the closest weekend
   return d;
 }
 function formatWeekLabel(fridayDate) {
@@ -753,11 +763,11 @@ function dayDateLabel(day) {
 }
 function useUpcomingWeekend() {
   if (!requireLead()) return;
-  const fri = upcomingFriday(new Date());
+  const fri = nextWeekendFriday(new Date());
   state.week.weekendDate = fri.toISOString().slice(0, 10);
   state.week.label = formatWeekLabel(fri);
   saveState(); renderAllShiftLists();
-  toast('Set to the upcoming Fri\u2013Sun');
+  toast('Set to next weekend');
 }
 
 function freshState() {
@@ -838,7 +848,23 @@ function togglePresentMode() {
   document.getElementById('present-toggle-btn').textContent = on ? 'Exit full screen' : 'Full screen';
 }
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.body.classList.contains('present-mode')) togglePresentMode();
+  if (e.key === 'Escape' && document.body.classList.contains('present-mode')) { togglePresentMode(); return; }
+  if (e.code === 'Space' || e.key === ' ') {
+    const activeTag = (document.activeElement && document.activeElement.tagName) || '';
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+    const continueBtn = document.getElementById('reveal-continue-btn');
+    if (continueBtn && continueBtn.style.display !== 'none') {
+      e.preventDefault();
+      continueBtn.click();
+      return;
+    }
+    const drawBtn = document.getElementById('draw-btn');
+    const drawPanel = document.getElementById('panel-draw');
+    if (drawBtn && drawPanel && drawPanel.classList.contains('active')) {
+      e.preventDefault();
+      drawBtn.click();
+    }
+  }
 });
 
 // ---------- weighting (persistent modifier, carries over week to week) ----------
@@ -1345,7 +1371,7 @@ function renderResults() {
       <div class="stage-card">
         <div class="stage-label">Pick ${idx + 2} of ${state.results.rows.length}</div>
         <div class="stage-shift">${tierBadge(next.tier)}</div>
-        <button class="accent" id="draw-btn" onclick="revealNext()">Draw!</button>
+        <button class="accent" id="draw-btn" onclick="revealNext()">Draw! <span class="key-hint">&#9251;</span></button>
       </div>`;
     if (finalizeBtn) finalizeBtn.disabled = true;
   }
@@ -1381,7 +1407,7 @@ function revealNext() {
       <div class="confetti-host" id="confetti-host">
         <div class="stage-name" id="reveal-modal-name">?</div>
       </div>
-      <button class="ghost" id="reveal-continue-btn" onclick="finishReveal(${idx})" style="display:none;">Continue</button>
+      <button class="ghost" id="reveal-continue-btn" onclick="finishReveal(${idx})" style="display:none;">Continue <span class="key-hint">&#9251;</span></button>
     </div>
   </div>`;
   const nameEl = document.getElementById('reveal-modal-name');
