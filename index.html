@@ -613,7 +613,7 @@ function updateAuthUI() {
     el.innerHTML = `<span class="who">${escapeHtml(session.username)}</span><button class="ghost" onclick="signOut()">Sign out</button>`;
     if (banner) banner.style.display = 'none';
   } else {
-    el.innerHTML = `<button class="secondary" onclick="openSignIn()">Lead sign in</button>`;
+    el.innerHTML = '';
     if (banner) banner.style.display = 'flex';
     const pointsPanel = document.getElementById('panel-points');
     if (pointsPanel && pointsPanel.classList.contains('active')) goToTab('roster');
