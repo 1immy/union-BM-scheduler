@@ -1,6 +1,6 @@
-# Building Manager Shift Draw
+# BM Drafts
 
-A weighted, replayable alternative to [wheelofnames.com](https://wheelofnames.com/) for scheduling UW–Madison building manager shifts. Runs entirely in the browser — no backend, no login, just this one HTML file.
+A weighted, live-synced alternative to [wheelofnames.com](https://wheelofnames.com/) for scheduling Wisconsin Union building manager shifts. Runs as a single HTML file backed by a small Supabase database, so it works the same way on every device instead of being stuck in one browser's local storage.
 
 **Live page:** _https://1immy.github.io/union-BM-scheduler/_
 
@@ -8,35 +8,39 @@ A weighted, replayable alternative to [wheelofnames.com](https://wheelofnames.co
 
 The old process (a plain random wheel spin) had two problems:
 
-1. **No memory** — whoever landed last in the spin order one week had the same odds of landing last again the next week, so the same people kept ending up with the leftover shifts.
+1. **No memory** — whoever landed last in the spin order one week had roughly the same odds of landing last again the next week, so the same people kept ending up with the leftover shifts.
 2. **Slow** — spinning a full animated wheel once per shift, for every shift in the week, ate a lot of meeting time.
 
-This tool fixes both: it weights the draw by where each person landed last time, and it computes the whole week's order instantly, then reveals it one shift at a time with a bit of suspense instead of a slow spinning animation.
+This tool fixes both: it weights the draw using a running fairness score that carries over week to week, computes the whole week's order instantly, then reveals it one pick at a time with a confetti moment instead of a slow spinning animation.
 
 ## How the weighting works
 
-Each person's weight for this week = the position they landed in **last week's** draw (1st drawn = weight 1, last drawn = weight N). Higher weight means a higher chance of being drawn *early* this week — so whoever got stuck with the worst leftover shift last time gets first crack at a good one this time. New people with no history default to a middle-of-the-pack weight. Weights can also be manually overridden per person (e.g. someone on reduced hours) from the Roster tab.
+Each person has a **credit** that persists across weeks instead of resetting. After every finalized draft, whoever landed later than the middle of the field gains credit; whoever landed earlier loses some. That credit carries forward, so repeated bad luck keeps compounding until it's actually corrected — not just reset the following week. Weight for the next draft = a neutral baseline + that credit. New people with no history start at the baseline. Weight can also be manually overridden per person (e.g. someone on reduced hours) from the Roster tab, and "Reset weighting" zeroes everyone's credit for a fresh season without deleting the saved history log.
 
 ## Scheduling rules it encodes
 
-1. **Weekend shifts first** — the 8 fixed shifts (Fri MU/US Close, Sat MU/US Open & Close, Sun MU/US Open) are drawn first, and are eligible for the swap rule.
-2. **Shift swap** — anyone assigned one of the first 10 shifts who can't work it can hand it to a volunteer who hasn't appeared on the wheel yet. Their own name still counts for next week's weighting even though someone else works the shift.
-3. **Badger Bash staffing** — needs 4 building managers; volunteers/already-signed-up people fill first, the wheel only fills what's left.
-4. **Red Gym before SAC** — Red Gym shifts are drawn before SAC shifts.
-5. **SAC splitting** — any SAC shift can be marked splittable, letting two people share it.
+1. **Weekend shifts first** — the 8 fixed slots (Fri MU/US Close, Sat MU/US Open & Close, Sun MU/US Open) are drafted first and are eligible for the swap rule. Each is tagged with a day (Fri/Sat/Sun) so the live status board can group them.
+2. **Shift swap** — anyone drafted into one of the first 10 picks who can't work it can hand it to a volunteer who hasn't been revealed on the wheel yet. Their own name still counts for next week's weighting even though someone else covers it. (A "Swap Insurance" Brownie Shop perk can unlock this outside the normal first-10 window.)
+3. **Special events** — Badger Bash, Idea Fest Support, or anything similar; you can set up more than one per week. Volunteers/already-signed-up people fill first, the draft only fills what's left.
+4. **Red Gym before SAC** — both are recurring fixed slot lists (edit them once, they persist week to week) drafted in that order, after special events.
+5. **Splitting a shift between two people** is handled on the actual scheduling page now, not in this tool — this tool only decides pick order.
 
 ## Using it week to week
 
-1. **Roster tab** — keep the full list of building managers up to date. Weight and last week's position show automatically.
-2. **This Week's Shifts tab** — edit the shift list for the week (add/remove Red Gym or SAC shifts, toggle Badger Bash on, add its volunteers).
-3. **Draw & Results tab** — click **Run the wheel** to lock in the full weighted order, then click **Draw!** to reveal shifts one at a time in the meeting. Swap or split any shift as needed.
-4. **Finalize & save to history** once every shift is revealed — this is what sets next week's weights.
-5. **History tab** — a record of every finalized week's draw order.
+1. **Roster tab** — keep the list of building managers current. Weight, credit, and last week's position show automatically. Adding, removing, importing, and resetting weighting all require a signed-in lead.
+2. **This Week's Draft tab** — pick the weekend date (or click "Use upcoming weekend" to auto-fill the coming Fri–Sun), set up this week's special event(s), and adjust the Weekend/Red Gym/SAC slot lists if they've changed.
+3. **Draw & Reveal tab** — click **Run the draft** to lock in the full weighted order, then click **Draw!** to reveal picks one at a time with confetti. A calendar-style status board shows which slots are still open, grouped by day and building. There's a **Full screen** toggle here for projecting during the actual meeting (Esc exits it).
+4. **Finalize & save to history** once everyone's drafted — this is what updates everyone's weighting.
+5. **History tab** — every finalized week's draw order, visible to everyone; click "More info" on a week for the full detail (weights used, setup, individual picks).
 
-## A note on where data lives
+## Brownie Points & Shop
 
-There's no shared database — the roster, this week's shifts, and history are all stored in the browser's local storage on whichever device runs the tool. Opening the GitHub Pages link on a different computer starts with a blank slate. In practice, that means one person (or one shared computer) should be the one who runs the actual weekly draw, so the roster and history stay continuous. If you outgrow that, the tool would need a small shared backend (e.g. Firebase or Supabase) to sync across devices.
+Leads can award or dock points (with a reason attached) for things like picking up a shift, a shoutout from another department, or an unexcused absence. Points are redeemable in the Brownie Shop for a handful of perks — some apply automatically (a credit boost, sitting out the next draft, swap insurance), others are just logged for a lead to honor in person (like an actual brownie). The **Points tab is only visible when signed in** — balances and point history stay out of public view on purpose, to keep it from turning into hallway drama. The Shop's catalog is publicly browsable, but redeeming, adding, or removing items requires a lead.
+
+## Public vs. lead view
+
+Anyone with the link can see the roster, weights, this week's setup, the live draft as it's revealed, and past weeks' history — good for transparency. Actually changing anything (running a draft, editing the roster or shift setup, swapping a pick, adjusting or redeeming points, editing the shop) requires being signed in as a lead. That's enforced by the database itself, not just hidden in the page, so it holds even if someone pokes around in the browser's dev tools.
 
 ## Updating the tool
 
-Edit `index.html` directly in GitHub (pencil icon) or upload a replacement, then commit. GitHub Pages redeploys automatically within a minute or so.
+Edit `index.html` directly in GitHub (pencil icon) or upload a replacement, then commit. GitHub Pages redeploys automatically within a minute or so. Database schema changes (new tables, columns, or rules) happen on the Supabase project directly and aren't part of this repo.
