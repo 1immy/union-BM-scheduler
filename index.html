@@ -92,6 +92,9 @@ body.present-mode .brand-footer {
 body.present-mode .wrap { max-width: 100%; padding: 20px; }
 body.present-mode .stage-name { font-size: clamp(64px, 11vw, 140px); }
 body.present-mode .stage-card { padding: 60px 20px; }
+body.present-mode .reveal-modal { max-width: 780px; padding: 36px; }
+body.present-mode .confetti-host { min-height: 220px; }
+body.present-mode .reveal-countdown { font-size: 16px; }
 .view-only-banner {
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 10px 16px; margin-bottom: 18px; font-size: 13.5px; color: var(--ink-soft);
@@ -205,10 +208,15 @@ tr:last-child td { border-bottom: none; }
 .modal h3 { margin: 0 0 12px; font-family: 'Zilla Slab', serif; font-size: 18px; }
 .modal .cand { display: block; width: 100%; text-align: left; padding: 11px 12px; margin-bottom: 7px; border-radius: 5px; font-size: 15.5px; }
 
-.reveal-modal { max-width: 480px; text-align: center; }
-.confetti-host { position: relative; overflow: hidden; min-height: 150px; display: flex; align-items: center; justify-content: center; }
+.reveal-modal { max-width: 520px; text-align: center; overflow: visible; max-height: none; }
+.confetti-host { position: relative; overflow: visible; min-height: 160px; display: flex; align-items: center; justify-content: center; }
 .confetti-piece { position: absolute; top: -12px; width: 8px; height: 14px; border-radius: 2px; opacity: 0.95; animation: confetti-fall linear forwards; }
-@keyframes confetti-fall { to { transform: translateY(280px) rotate(540deg); opacity: 0; } }
+@keyframes confetti-fall { to { transform: translate(var(--drift, 0px), var(--fall, 280px)) rotate(540deg); opacity: 0; } }
+.reveal-countdown {
+  margin-top: 6px; font-size: 13.5px; color: var(--ink-soft);
+  opacity: 0; transition: opacity 0.4s ease;
+}
+.reveal-countdown.visible { opacity: 1; }
 
 .toast {
   position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
@@ -225,9 +233,10 @@ tr:last-child td { border-bottom: none; }
   font-family: 'Zilla Slab', serif; font-weight: 800;
   font-size: clamp(40px, 7vw, 84px); line-height: 1.05;
   min-height: 1.1em; margin-bottom: 22px; color: var(--ink-soft);
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, color 0.15s ease;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
-.stage-name.landed { color: var(--warm); transform: scale(1.08); }
+.stage-name.landed { color: var(--warm); transform: scale(1.04); }
 .done-msg { text-align: center; padding: 12px 0 2px; color: var(--ink-soft); font-size: 15px; }
 
 .foot-note { font-size: 13.5px; color: var(--ink-soft); margin-top: 6px; }
@@ -268,6 +277,12 @@ tr:last-child td { border-bottom: none; }
 .log-entry .delta-pos { color: #7CE18B; font-weight: 700; }
 .log-entry .delta-neg { color: #FF9A9A; font-weight: 700; }
 .log-entry .when { color: var(--ink-soft); font-size: 12.5px; display: block; margin-top: 2px; }
+.icon-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.icon-picker-btn {
+  width: 46px; height: 46px; border-radius: 8px; border: 2px solid var(--line);
+  background: var(--surface-2); display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.icon-picker-btn.selected { border-color: var(--accent); background: var(--accent-soft); }
 
 .week-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
 .detail-title { font-weight: 800; font-size: 12.5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
@@ -326,13 +341,14 @@ tr:last-child td { border-bottom: none; }
   <!-- ROSTER -->
   <div class="panel active" id="panel-roster">
     <section class="card" id="active-roster-card" ondragover="allowDrop(event)" ondrop="handleDropActive(event)" ondragenter="this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
-      <h2>Building managers</h2>
-      <p class="hint">Weight goes up when someone is drafted late and down when they're drafted early. The effect carries over week to week instead of resetting, so repeated bad luck keeps building until it's corrected.</p>
+      <h2>Building Managers</h2>
+      <p class="hint">Weight rises when someone's drafted late and falls when they're drafted early, carrying over week to week so bad luck keeps compounding until it's corrected.</p>
 
       <div class="settings-row lead-only">
         <button class="danger-ghost" onclick="resetWeights()">Reset weighting (new season)</button>
         <button class="secondary" onclick="document.getElementById('import-file').click()">Import list</button>
         <input type="file" id="import-file" accept=".csv,.txt" style="display:none;" onchange="importRoster(event)">
+        <button class="secondary" onclick="exportRoster()">Export list</button>
       </div>
 
       <div class="row lead-only" style="margin-bottom:14px;">
@@ -495,7 +511,7 @@ tr:last-child td { border-bottom: none; }
       <div class="row" style="justify-content:space-between;">
         <div>
           <h2 style="margin-bottom:2px;">Brownie Points</h2>
-          <p class="hint" style="margin-bottom:0;">Earned for good work, lost for the opposite. Adjust a person's balance with a reason attached.</p>
+          <p class="hint" style="margin-bottom:0;">Earned for good work, lost for the opposite.</p>
         </div>
       </div>
       <table id="points-table" style="margin-top:14px;">
@@ -515,6 +531,7 @@ tr:last-child td { border-bottom: none; }
         <div class="big">Nothing logged yet</div>
         Point changes and shop redemptions will show up here.
       </div>
+      <div class="row" id="points-log-pagination" style="justify-content:center; margin-top:12px; display:none;"></div>
     </section>
   </div>
 
@@ -524,9 +541,9 @@ tr:last-child td { border-bottom: none; }
       <div class="row" style="justify-content:space-between;">
         <div>
           <h2 style="margin-bottom:2px;">Brownie Shop</h2>
-          <p class="hint" style="margin-bottom:0;">Redeem points for perks. Some are applied automatically; others are logged here for a lead to honor in person.</p>
+          <p class="hint" style="margin-bottom:0;">Redeem points for perks.</p>
         </div>
-        <button class="secondary" onclick="addShopItem()">+ Add item</button>
+        <button class="secondary" onclick="openAddShopItem()">+ Add item</button>
       </div>
     </section>
     <div id="shop-grid" class="shop-grid"></div>
@@ -730,7 +747,9 @@ const defaultRedgym = [
 const defaultSac = [
   { label: 'Fri Close', day: 'Fri' },
   { label: 'Sat Open', day: 'Sat' },
-  { label: 'Sat Close', day: 'Sat' }
+  { label: 'Sat Close', day: 'Sat' },
+  { label: 'Sun Open', day: 'Sun' },
+  { label: 'Sun Close', day: 'Sun' }
 ];
 const defaultShopItems = [
   { id: 'boost', name: 'Front of the Line', desc: 'Adds a one-time credit boost applied immediately, raising your odds on the very next draft.', cost: 80, icon: 'star', effect: 'creditBoost' },
@@ -889,11 +908,18 @@ function lastPosition(m) {
   const idx = state.history[0].order.indexOf(m.name);
   return idx === -1 ? null : idx + 1;
 }
-function computeWeight(m) {
-  if (m.override !== null && m.override !== undefined && m.override !== '') return Number(m.override);
+function nicknameFor(name) {
+  const m = state.managers.find(x => x.name === name);
+  return (m && m.nickname) ? m.nickname : name;
+}
+function autoWeight(m) {
   const baseline = Math.ceil(((state.managers.length || 1) + 1) / 2);
   const w = baseline + (m.credit || 0);
   return Math.max(0.5, Math.round(w * 10) / 10);
+}
+function computeWeight(m) {
+  if (m.override !== null && m.override !== undefined && m.override !== '') return Number(m.override);
+  return autoWeight(m);
 }
 
 // ---------- roster rendering ----------
@@ -903,9 +929,9 @@ function rosterRowHtml(m, benched) {
   const actionBtn = benched
     ? `<button class="ghost" onclick="toggleBenchStatus('${m.id}', false)">Restore</button>`
     : `<button class="ghost" onclick="toggleBenchStatus('${m.id}', true)">Bench</button>
-       <button class="ghost" onclick="overrideWeight('${m.id}')">Override</button>`;
+       <button class="ghost" onclick="openEditManager('${m.id}')">Edit</button>`;
   return `
-    <td class="roster-name">${escapeHtml(m.name)}</td>
+    <td class="roster-name">${escapeHtml(m.name)}${m.nickname ? ` <span style="color:var(--ink-soft); font-weight:500;">"${escapeHtml(m.nickname)}"</span>` : ''}</td>
     <td class="pos-history">${lastPos ? '#' + lastPos + ' last week' : '<span style="color:var(--ink-soft)">no history</span>'}</td>
     <td class="num">${(m.credit || 0).toFixed(1)}</td>
     <td><span class="weight-pill">weight ${w}</span></td>
@@ -989,13 +1015,49 @@ async function removeManager(id) {
     if (error) toast('Could not delete on server: ' + error.message);
   }
 }
-function overrideWeight(id) {
+function openEditManager(id) {
   if (!requireLead()) return;
   const m = state.managers.find(x => x.id === id);
-  const val = prompt(`Manual weight override for ${m.name}\n(leave blank to go back to automatic weighting)`, m.override ?? '');
-  if (val === null) return;
-  m.override = val.trim() === '' ? null : Number(val);
-  saveState(); renderRoster();
+  if (!m) return;
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Edit ${escapeHtml(m.name)}</h3>
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Name</label>
+    <input type="text" id="edit-name" value="${escapeHtml(m.name)}" style="width:100%;margin-bottom:14px;" onkeydown="if(event.key==='Enter') submitEditManager('${id}')">
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Nickname (optional)</label>
+    <input type="text" id="edit-nickname" value="${escapeHtml(m.nickname || '')}" placeholder="What they'd rather go by" style="width:100%;margin-bottom:14px;" onkeydown="if(event.key==='Enter') submitEditManager('${id}')">
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Manual weight override</label>
+    <input type="number" id="edit-override" step="0.1" value="${m.override ?? ''}" placeholder="Leave blank for automatic weighting" style="width:100%;margin-bottom:8px;" onkeydown="if(event.key==='Enter') submitEditManager('${id}')">
+    <p class="hint" style="margin-bottom:14px;">Automatic weight right now would be ${autoWeight(m)}.</p>
+    <div class="row">
+      <button class="accent" onclick="submitEditManager('${id}')">Save <span class="key-hint">&#9166;</span></button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+}
+async function submitEditManager(id) {
+  const m = state.managers.find(x => x.id === id);
+  if (!m) return;
+  const newName = document.getElementById('edit-name').value.trim();
+  const newNickname = document.getElementById('edit-nickname').value.trim();
+  const overrideVal = document.getElementById('edit-override').value;
+  if (!newName) { toast('Name cannot be empty'); return; }
+  const newOverride = overrideVal.trim() === '' ? null : Number(overrideVal);
+  const nameChanged = newName !== m.name;
+  const nicknameChanged = newNickname !== (m.nickname || '');
+
+  if ((nameChanged || nicknameChanged) && sb) {
+    const { error } = await sb.rpc('rpc_rename_manager', { p_token: session.token, p_id: id, p_new_name: newName, p_nickname: newNickname || null });
+    if (error) {
+      toast(error.message && error.message.toLowerCase().includes('duplicate') ? 'That name is already taken' : 'Could not rename: ' + error.message);
+      return;
+    }
+  }
+  if (nameChanged) m.name = newName;
+  m.nickname = newNickname || null;
+  m.override = newOverride;
+  saveState(); renderRoster(); closeModal();
+  toast(`${m.name} updated`);
 }
 function resetWeights() {
   if (!requireLead()) return;
@@ -1211,6 +1273,8 @@ function buildingFor(tier, label) {
 function runDraw() {
   if (!requireLead()) return;
   if (state.managers.length === 0) { toast('Add building managers to the roster first'); return; }
+  clearTimeout(revealGraceTimer);
+  clearInterval(revealCountdownTimer);
   closeModal();
   const noDouble = state.week.noDoubleBook;
   let pool = state.managers.filter(m => !m.skipNext && !m.benched);
@@ -1352,7 +1416,7 @@ function buildResultRow(r, i) {
     <div class="result-main">
       <div class="shift-name">${escapeHtml(r.shiftLabel)} ${tierBadge(r.tier)}</div>
       <div class="assign-line">
-        Up to pick: <span class="who">${escapeHtml(r.workingName)}</span>
+        Up to pick: <span class="who">${escapeHtml(nicknameFor(r.workingName))}</span>
         ${r.swapped ? `<span class="swap-note"> (swapped for ${escapeHtml(r.assignedName)})</span>` : ''}
       </div>
       ${pickerHtml}
@@ -1384,9 +1448,13 @@ function renderStatusBoard() {
     const dayOrder = ['Fri', 'Sat', 'Sun', 'Other'];
     const days = dayOrder.filter(d => metas.some(m => m.day === d));
     html += '<div class="day-card-row">';
+    const buildingOrder = ['Memorial Union', 'Red Gym', 'Union South', 'SAC'];
     days.forEach(day => {
       const dayMetas = metas.filter(m => m.day === day);
-      const buildings = [...new Set(dayMetas.map(m => m.building))];
+      const buildings = [...new Set(dayMetas.map(m => m.building))].sort((a, b) => {
+        const ai = buildingOrder.indexOf(a), bi = buildingOrder.indexOf(b);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      });
       html += `<div class="day-card">
         <div class="day-card-date">${escapeHtml(dayDateLabel(day))}</div>
         ${buildings.map(b => `
@@ -1441,7 +1509,9 @@ function renderResults() {
 
 function fireConfetti(host) {
   const colors = ['#C5050C', '#FFC845', '#6FD3C7', '#F6F5F1', '#FF8F66'];
-  for (let i = 0; i < 32; i++) {
+  const present = document.body.classList.contains('present-mode');
+  const count = present ? 70 : 32;
+  for (let i = 0; i < count; i++) {
     const el = document.createElement('div');
     el.className = 'confetti-piece';
     el.style.left = (Math.random() * 100) + '%';
@@ -1449,10 +1519,29 @@ function fireConfetti(host) {
     el.style.animationDuration = (900 + Math.random() * 700) + 'ms';
     el.style.animationDelay = (Math.random() * 150) + 'ms';
     el.style.transform = `rotate(${Math.random() * 360}deg)`;
+    const spread = present ? 240 : 100;
+    el.style.setProperty('--drift', (Math.random() * spread * 2 - spread) + 'px');
+    el.style.setProperty('--fall', (present ? 340 : 280) + 'px');
     host.appendChild(el);
     setTimeout(() => el.remove(), 2000);
   }
 }
+function fitText(el) {
+  if (!el || !el.parentElement) return;
+  const cs = window.getComputedStyle(el);
+  let fontSize = parseFloat(cs.fontSize);
+  const minFont = 22;
+  let guard = 0;
+  el.style.fontSize = fontSize + 'px';
+  while (el.scrollWidth > el.parentElement.clientWidth && fontSize > minFont && guard < 50) {
+    fontSize -= 2;
+    el.style.fontSize = fontSize + 'px';
+    guard++;
+  }
+}
+
+let revealGraceTimer = null;
+let revealCountdownTimer = null;
 
 function revealNext() {
   if (!requireLead()) return;
@@ -1469,6 +1558,7 @@ function revealNext() {
       <div class="confetti-host" id="confetti-host">
         <div class="stage-name" id="reveal-modal-name">?</div>
       </div>
+      <div class="reveal-countdown" id="reveal-countdown">Continuing in <span id="reveal-countdown-num">5</span>s&hellip;</div>
       <button class="ghost" id="reveal-continue-btn" onclick="finishReveal(${idx})" style="display:none;">Continue <span class="key-hint">&#9251;</span></button>
     </div>
   </div>`;
@@ -1476,21 +1566,38 @@ function revealNext() {
   const confettiHost = document.getElementById('confetti-host');
 
   function land() {
-    nameEl.textContent = finalName;
+    nameEl.textContent = nicknameFor(finalName);
     nameEl.classList.add('landed');
+    fitText(nameEl);
     fireConfetti(confettiHost);
     const continueBtn = document.getElementById('reveal-continue-btn');
     if (continueBtn) continueBtn.style.display = 'inline-block';
-    setTimeout(() => finishReveal(idx), 2600);
+
+    clearTimeout(revealGraceTimer);
+    clearInterval(revealCountdownTimer);
+    revealGraceTimer = setTimeout(() => {
+      const countdownEl = document.getElementById('reveal-countdown');
+      const countdownNum = document.getElementById('reveal-countdown-num');
+      if (!countdownEl || !countdownNum) return;
+      countdownEl.classList.add('visible');
+      let n = 5;
+      countdownNum.textContent = n;
+      revealCountdownTimer = setInterval(() => {
+        n -= 1;
+        if (n <= 0) { clearInterval(revealCountdownTimer); finishReveal(idx); return; }
+        countdownNum.textContent = n;
+      }, 1000);
+    }, 3000);
   }
 
-  if (!pool) { nameEl.textContent = finalName; land(); return; }
+  if (!pool) { nameEl.textContent = nicknameFor(finalName); fitText(nameEl); land(); return; }
 
   let ticks = 0;
   const maxTicks = 14;
   (function tick() {
     if (ticks < maxTicks) {
-      nameEl.textContent = pool[Math.floor(Math.random() * pool.length)];
+      nameEl.textContent = nicknameFor(pool[Math.floor(Math.random() * pool.length)]);
+      fitText(nameEl);
       ticks++;
       setTimeout(tick, 55 + (ticks / maxTicks) * 200);
     } else { land(); }
@@ -1498,6 +1605,8 @@ function revealNext() {
 }
 
 function finishReveal(idx) {
+  clearTimeout(revealGraceTimer);
+  clearInterval(revealCountdownTimer);
   if (!state.results || state.results.revealedIndex >= idx) { closeModal(); return; }
   state.results.revealedIndex = idx;
   saveState();
@@ -1508,6 +1617,8 @@ function finishReveal(idx) {
 function skipToFull() {
   if (!requireLead()) return;
   if (!state.results) return;
+  clearTimeout(revealGraceTimer);
+  clearInterval(revealCountdownTimer);
   closeModal();
   state.results.revealedIndex = state.results.rows.length - 1;
   saveState(); renderResults();
@@ -1629,6 +1740,35 @@ function buildWeekDetailHtml(week) {
   </div>`;
 }
 
+async function exportRoster() {
+  const payload = state.managers.map(m => m.name).join('\n') + '\n';
+  const filename = `bm-drafts-roster-${new Date().toISOString().slice(0, 10)}.txt`;
+
+  if (window.claude && typeof window.claude.use === 'function') {
+    try {
+      const downloads = await window.claude.use('downloads');
+      if (downloads) {
+        await downloads.save({ filename, data: payload });
+        toast('Roster exported');
+        return;
+      }
+    } catch (e) {
+      if (e && e.code === 'declined') return;
+    }
+  }
+  try {
+    const blob = new Blob([payload], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('Roster exported');
+  } catch (e) {
+    toast('Could not export roster');
+  }
+}
+
 async function exportHistory() {
   const payload = JSON.stringify({
     exportedAt: new Date().toISOString(),
@@ -1707,14 +1847,21 @@ const pointPresets = [
   { label: "Didn't save the night report", delta: -10 }
 ];
 
+const LEAD_NAME_KEY = 'bm-last-lead-name';
+let pointsLogPage = 1;
+const POINTS_LOG_PAGE_SIZE = 15;
+
 function renderPoints() {
   const body = document.getElementById('points-body');
   body.innerHTML = '';
   document.getElementById('points-empty').style.display = state.managers.length ? 'none' : 'block';
-  state.managers.slice().sort((a, b) => (b.points || 0) - (a.points || 0)).forEach(m => {
+  const active = state.managers.filter(m => !m.benched).sort((a, b) => (b.points || 0) - (a.points || 0));
+  const benched = state.managers.filter(m => m.benched).sort((a, b) => (b.points || 0) - (a.points || 0));
+  [...active, ...benched].forEach(m => {
     const tr = document.createElement('tr');
+    if (m.benched) tr.style.opacity = '0.5';
     tr.innerHTML = `
-      <td class="roster-name">${escapeHtml(m.name)}</td>
+      <td class="roster-name">${escapeHtml(m.name)}${m.nickname ? ` <span style="color:var(--ink-soft); font-weight:500;">"${escapeHtml(m.nickname)}"</span>` : ''}${m.benched ? ' <span style="color:var(--ink-soft); font-size:12px;">(benched)</span>' : ''}</td>
       <td><span class="points-balance">${m.points || 0} pts</span></td>
       <td style="text-align:right;"><button class="secondary" onclick="openAdjustPoints('${m.id}')">Adjust</button></td>`;
     body.appendChild(tr);
@@ -1723,25 +1870,52 @@ function renderPoints() {
 }
 function renderPointsLog() {
   const list = document.getElementById('points-log');
+  const pager = document.getElementById('points-log-pagination');
   list.innerHTML = '';
-  const entries = state.pointsLog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 20);
+  const entries = state.pointsLog.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
   document.getElementById('points-log-empty').style.display = entries.length ? 'none' : 'block';
-  entries.forEach(e => {
+  const totalPages = Math.max(1, Math.ceil(entries.length / POINTS_LOG_PAGE_SIZE));
+  if (pointsLogPage > totalPages) pointsLogPage = totalPages;
+  const start = (pointsLogPage - 1) * POINTS_LOG_PAGE_SIZE;
+  entries.slice(start, start + POINTS_LOG_PAGE_SIZE).forEach(e => {
     const div = document.createElement('div');
     div.className = 'log-entry';
     const cls = e.delta >= 0 ? 'delta-pos' : 'delta-neg';
     const sign = e.delta >= 0 ? '+' : '';
-    div.innerHTML = `<span class="who">${escapeHtml(e.name)}</span> <span class="${cls}">${sign}${e.delta} pts</span> &mdash; ${escapeHtml(e.reason)}<span class="when">${new Date(e.date).toLocaleString()}</span>`;
+    const balanceText = (e.balanceBefore !== undefined && e.balanceBefore !== null && e.balanceAfter !== undefined && e.balanceAfter !== null)
+      ? ` (${e.balanceBefore} &rarr; ${e.balanceAfter})` : '';
+    const leadText = e.leadName ? ` &middot; by ${escapeHtml(e.leadName)}` : '';
+    div.innerHTML = `<span class="who">${escapeHtml(e.name)}</span> <span class="${cls}">${sign}${e.delta} pts</span>${balanceText} &mdash; ${escapeHtml(e.reason)}${leadText}<span class="when">${new Date(e.date).toLocaleString()}</span>`;
     list.appendChild(div);
   });
+  if (pager) {
+    if (totalPages > 1) {
+      pager.style.display = 'flex';
+      let html = `<button class="ghost" onclick="goToPointsLogPage(${pointsLogPage - 1})" ${pointsLogPage <= 1 ? 'disabled' : ''}>Prev</button>`;
+      for (let p = 1; p <= totalPages; p++) {
+        html += `<button class="${p === pointsLogPage ? 'secondary' : 'ghost'}" onclick="goToPointsLogPage(${p})">${p}</button>`;
+      }
+      html += `<button class="ghost" onclick="goToPointsLogPage(${pointsLogPage + 1})" ${pointsLogPage >= totalPages ? 'disabled' : ''}>Next</button>`;
+      pager.innerHTML = html;
+    } else {
+      pager.style.display = 'none';
+    }
+  }
+}
+function goToPointsLogPage(p) {
+  pointsLogPage = Math.max(1, p);
+  renderPointsLog();
 }
 function openAdjustPoints(managerId) {
   if (!requireLead()) return;
   const m = state.managers.find(x => x.id === managerId);
+  const lastLead = localStorage.getItem(LEAD_NAME_KEY) || '';
   const modal = document.getElementById('modal-root');
   modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <h3>Adjust points &mdash; ${escapeHtml(m.name)}</h3>
     <p class="hint">Current balance: ${m.points || 0} pts</p>
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Your name (required)</label>
+    <input type="text" id="adjust-lead-name" value="${escapeHtml(lastLead)}" placeholder="Who's making this change" style="width:100%;margin-bottom:12px;">
     <select id="adjust-preset" style="width:100%;margin-bottom:10px;">
       <option value="">Custom amount&hellip;</option>
       ${pointPresets.map((p, i) => `<option value="${i}">${p.delta > 0 ? '+' : ''}${p.delta} &mdash; ${escapeHtml(p.label)}</option>`).join('')}
@@ -1764,17 +1938,25 @@ function openAdjustPoints(managerId) {
 }
 async function submitAdjustPoints(managerId) {
   const m = state.managers.find(x => x.id === managerId);
+  const leadName = document.getElementById('adjust-lead-name').value.trim();
   const amount = Number(document.getElementById('adjust-amount').value);
   const reason = document.getElementById('adjust-reason').value.trim();
+  if (!leadName) { toast('Enter your name first, for the record'); return; }
   if (!amount || !reason) { toast('Enter an amount and a reason'); return; }
-  m.points = (m.points || 0) + amount;
+  localStorage.setItem(LEAD_NAME_KEY, leadName);
+  const before = m.points || 0;
+  const after = before + amount;
+  m.points = after;
   saveState();
-  const entry = { id: uid(), date: new Date().toISOString(), name: m.name, delta: amount, reason };
-  state.pointsLog.unshift(entry);
+  state.pointsLog.unshift({ id: uid(), date: new Date().toISOString(), name: m.name, delta: amount, reason, leadName, balanceBefore: before, balanceAfter: after });
+  pointsLogPage = 1;
   renderPoints(); closeModal();
   toast(`${amount > 0 ? '+' : ''}${amount} pts for ${m.name}`);
   if (sb) {
-    const { error } = await sb.rpc('rpc_insert_points_log', { p_token: session.token, p_manager_name: m.name, p_delta: amount, p_reason: reason });
+    const { error } = await sb.rpc('rpc_insert_points_log', {
+      p_token: session.token, p_manager_name: m.name, p_delta: amount, p_reason: reason,
+      p_lead_name: leadName, p_balance_before: before, p_balance_after: after
+    });
     if (error) toast('Could not save to server: ' + error.message);
   }
 }
@@ -1822,22 +2004,49 @@ async function removeShopItem(id) {
     if (error) toast('Could not delete on server: ' + error.message);
   }
 }
-async function addShopItem() {
+let selectedShopIcon = 'gift';
+function openAddShopItem() {
   if (!requireLead()) return;
-  const name = prompt('Item name');
-  if (!name || !name.trim()) return;
-  const cost = Number(prompt('Point cost', '50'));
-  if (!cost || cost <= 0) return;
-  const desc = prompt('Short description', '') || '';
-  const local = { id: uid(), name: name.trim(), desc, cost, icon: 'gift', effect: 'honor' };
+  selectedShopIcon = 'gift';
+  const icons = ['star', 'calendar', 'shield', 'clock', 'brownie', 'gift'];
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>New shop item</h3>
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Name</label>
+    <input type="text" id="shop-item-name" placeholder="e.g. Front Row Parking" style="width:100%;margin-bottom:12px;" onkeydown="if(event.key==='Enter') submitAddShopItem()">
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Description</label>
+    <input type="text" id="shop-item-desc" placeholder="What redeeming this gets you" style="width:100%;margin-bottom:12px;" onkeydown="if(event.key==='Enter') submitAddShopItem()">
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Point cost</label>
+    <input type="number" id="shop-item-cost" value="50" min="1" style="width:120px;margin-bottom:14px;" onkeydown="if(event.key==='Enter') submitAddShopItem()">
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;">Icon</label>
+    <div class="icon-picker" id="icon-picker">
+      ${icons.map(k => `<button type="button" class="icon-picker-btn${k === 'gift' ? ' selected' : ''}" data-icon="${k}" onclick="selectShopIcon('${k}')">${shopIcon(k)}</button>`).join('')}
+    </div>
+    <div class="row" style="margin-top:16px;">
+      <button class="accent" onclick="submitAddShopItem()">Add item <span class="key-hint">&#9166;</span></button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+}
+function selectShopIcon(key) {
+  selectedShopIcon = key;
+  document.querySelectorAll('.icon-picker-btn').forEach(b => b.classList.toggle('selected', b.dataset.icon === key));
+}
+async function submitAddShopItem() {
+  const name = document.getElementById('shop-item-name').value.trim();
+  const desc = document.getElementById('shop-item-desc').value.trim();
+  const cost = Number(document.getElementById('shop-item-cost').value);
+  if (!name) { toast('Enter a name'); return; }
+  if (!cost || cost <= 0) { toast('Enter a point cost'); return; }
+  const local = { id: uid(), name, desc, cost, icon: selectedShopIcon, effect: 'honor' };
   state.shop.push(local);
-  renderShop();
+  renderShop(); closeModal();
   if (sb) {
-    const { data, error } = await sb.rpc('rpc_add_shop_item', { p_token: session.token, p_name: local.name, p_description: desc, p_cost: cost, p_icon: 'gift', p_effect: 'honor' });
+    const { data, error } = await sb.rpc('rpc_add_shop_item', { p_token: session.token, p_name: name, p_description: desc, p_cost: cost, p_icon: selectedShopIcon, p_effect: 'honor' });
     if (error) toast('Could not save to server: ' + error.message);
     else { local.id = data.id; renderShop(); }
   }
-  toast(`${local.name} added to the shop`);
+  toast(`${name} added to the shop`);
 }
 function openRedeem(itemId) {
   if (!requireLead()) return;
@@ -1863,17 +2072,22 @@ async function submitRedeem(itemId) {
   if (!managerId) { toast("Pick who's redeeming"); return; }
   const m = state.managers.find(x => x.id === managerId);
   if ((m.points || 0) < item.cost) { toast(`${m.name} needs ${item.cost - (m.points || 0)} more points`); return; }
-  m.points -= item.cost;
+  const before = m.points || 0;
+  const after = before - item.cost;
+  m.points = after;
   if (item.effect === 'creditBoost') m.credit = Math.round(((m.credit || 0) + 3) * 10) / 10;
   if (item.effect === 'skipNext') m.skipNext = true;
   if (item.effect === 'swapInsurance') m.swapInsurance = (m.swapInsurance || 0) + 1;
   saveState();
-  const entry = { id: uid(), date: new Date().toISOString(), name: m.name, delta: -item.cost, reason: `Redeemed: ${item.name}` };
-  state.pointsLog.unshift(entry);
+  state.pointsLog.unshift({ id: uid(), date: new Date().toISOString(), name: m.name, delta: -item.cost, reason: `Redeemed: ${item.name}`, balanceBefore: before, balanceAfter: after });
+  pointsLogPage = 1;
   renderPoints(); renderRoster(); closeModal();
   toast(`${m.name} redeemed ${item.name}`);
   if (sb) {
-    const { error } = await sb.rpc('rpc_insert_points_log', { p_token: session.token, p_manager_name: m.name, p_delta: -item.cost, p_reason: `Redeemed: ${item.name}` });
+    const { error } = await sb.rpc('rpc_insert_points_log', {
+      p_token: session.token, p_manager_name: m.name, p_delta: -item.cost, p_reason: `Redeemed: ${item.name}`,
+      p_balance_before: before, p_balance_after: after
+    });
     if (error) toast('Could not save to server: ' + error.message);
   }
 }
@@ -1885,7 +2099,7 @@ async function loadFromSupabase() {
       sb.from('managers').select('*').order('name'),
       sb.from('shop_items').select('*').order('cost'),
       sb.from('history_weeks').select('*').order('created_at', { ascending: false }),
-      sb.from('points_log').select('*').order('created_at', { ascending: false }).limit(50),
+      sb.from('points_log').select('*').order('created_at', { ascending: false }).limit(500),
       sb.from('week_config').select('*').eq('id', true).single(),
       sb.from('draft_state').select('*').eq('id', true).single()
     ]);
@@ -1900,7 +2114,7 @@ async function loadFromSupabase() {
       state.managers = managersRes.data.map(r => ({
         id: r.id, name: r.name, credit: Number(r.credit) || 0,
         override: r.override === null || r.override === undefined ? null : Number(r.override),
-        points: r.points || 0, skipNext: !!r.skip_next, swapInsurance: r.swap_insurance || 0, benched: !!r.benched
+        points: r.points || 0, skipNext: !!r.skip_next, swapInsurance: r.swap_insurance || 0, benched: !!r.benched, nickname: r.nickname || null
       }));
     }
     if (shopRes.data) {
@@ -1913,7 +2127,10 @@ async function loadFromSupabase() {
       }));
     }
     if (pointsRes.data) {
-      state.pointsLog = pointsRes.data.map(r => ({ id: r.id, date: r.created_at, name: r.manager_name, delta: r.delta, reason: r.reason }));
+      state.pointsLog = pointsRes.data.map(r => ({
+        id: r.id, date: r.created_at, name: r.manager_name, delta: r.delta, reason: r.reason,
+        leadName: r.lead_name || null, balanceBefore: r.balance_before, balanceAfter: r.balance_after
+      }));
     }
     if (weekRes.data) {
       const w = weekRes.data;
