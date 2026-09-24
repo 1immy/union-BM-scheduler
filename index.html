@@ -1890,6 +1890,12 @@ async function loadFromSupabase() {
       sb.from('draft_state').select('*').eq('id', true).single()
     ]);
 
+    const failures = [managersRes, shopRes, historyRes, pointsRes, weekRes, draftRes].filter(r => r.error);
+    if (failures.length) {
+      console.warn('Supabase load errors:', failures.map(r => r.error));
+      toast(`Could not load live data (${failures[0].error.message}). Showing local cache.`);
+    }
+
     if (managersRes.data) {
       state.managers = managersRes.data.map(r => ({
         id: r.id, name: r.name, credit: Number(r.credit) || 0,
