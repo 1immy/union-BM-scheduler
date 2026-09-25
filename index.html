@@ -585,6 +585,7 @@ const sb = (window.supabase && window.supabase.createClient)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 let session = null;
+let lastAppliedWeekUpdatedAt = null;
 
 const STORE_KEY = 'bm-shift-wheel-v2';
 const TOKEN_KEY = 'bm-lead-token';
@@ -609,6 +610,9 @@ async function saveState() {
       p_tier1: state.week.tier1, p_tier1b: state.week.tier1b, p_redgym: state.week.redgym, p_sac: state.week.sac,
       p_events: state.week.events, p_no_double_book: state.week.noDoubleBook
     });
+    // Mark "we just pushed a change as of now" so an out-of-order/stale fetch that
+    // reflects an earlier edit can't clobber this one back in on a later refresh.
+    lastAppliedWeekUpdatedAt = new Date().toISOString();
     if (state.results) {
       await sb.rpc('rpc_sync_draft_state', {
         p_token: session.token, p_is_active: true, p_draw_order: state.results.drawOrder, p_rows: state.results.rows,
@@ -1210,7 +1214,10 @@ function updateEventField(id, field, val) {
 function updateEventActive(id, checked) {
   if (!requireLead()) { renderEventsList(); return; }
   const ev = state.week.events.find(e => e.id === id);
-  if (ev) ev.active = checked;
+  if (ev) {
+    ev.active = checked;
+    if (!checked) ev.volunteers = [];
+  }
   saveState(); renderEventsList();
 }
 function addEventVolunteer(eventId) {
@@ -1650,21 +1657,20 @@ function skipToFull() {
 function openSwap(rowId) {
   if (!requireLead()) return;
   const row = state.results.rows.find(r => r.id === rowId);
-  const already = everyoneOnWheelSoFar();
-  const pool = state.managers.filter(m => !already.has(m.name));
+  const pool = state.managers.filter(m => m.name !== row.assignedName && m.name !== row.workingName);
   const modal = document.getElementById('modal-root');
   if (pool.length === 0) {
     modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal">
-      <h3>No one left to swap to</h3>
-      <p class="hint">Rule 2 needs a volunteer whose name hasn't been drawn yet. Everyone else has already been revealed.</p>
+      <h3>No one else to reassign to</h3>
+      <p class="hint">There's no one else on the roster to hand this pick to.</p>
       <button class="secondary" onclick="closeModal()">Close</button>
     </div></div>`;
     return;
   }
   modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <h3>Swap "${escapeHtml(row.shiftLabel)}"</h3>
-    <p class="hint">${escapeHtml(row.assignedName)} keeps their place on the wheel for next week. Pick who's actually covering it:</p>
-    ${pool.map(m => `<button class="secondary cand" onclick="doSwap('${rowId}','${m.id}')">${escapeHtml(m.name)}</button>`).join('')}
+    <p class="hint">${escapeHtml(row.assignedName)} keeps their place in next week's weighting either way. Pick who's actually covering it:</p>
+    ${pool.map(m => `<button class="secondary cand" onclick="doSwap('${rowId}','${m.id}')">${escapeHtml(m.name)}${m.benched ? ' <span style="color:var(--ink-soft); font-size:12px;">(benched)</span>' : ''}</button>`).join('')}
     <button class="ghost" onclick="closeModal()" style="margin-top:6px;">Cancel</button>
   </div></div>`;
 }
@@ -2229,14 +2235,18 @@ async function loadFromSupabase() {
     }
     if (weekRes.data) {
       const w = weekRes.data;
-      state.week.label = w.label || '';
-      state.week.weekendDate = w.weekend_date;
-      if (w.tier1 && w.tier1.length) state.week.tier1 = w.tier1;
-      state.week.tier1b = w.tier1b || [];
-      if (w.redgym && w.redgym.length) state.week.redgym = w.redgym;
-      if (w.sac && w.sac.length) state.week.sac = w.sac;
-      if (w.events && w.events.length) state.week.events = w.events;
-      state.week.noDoubleBook = w.no_double_book !== false;
+      const isStale = lastAppliedWeekUpdatedAt && w.updated_at && new Date(w.updated_at) < new Date(lastAppliedWeekUpdatedAt);
+      if (!isStale) {
+        lastAppliedWeekUpdatedAt = w.updated_at || lastAppliedWeekUpdatedAt;
+        state.week.label = w.label || '';
+        state.week.weekendDate = w.weekend_date;
+        if (w.tier1 && w.tier1.length) state.week.tier1 = w.tier1;
+        state.week.tier1b = w.tier1b || [];
+        if (w.redgym && w.redgym.length) state.week.redgym = w.redgym;
+        if (w.sac && w.sac.length) state.week.sac = w.sac;
+        if (w.events && w.events.length) state.week.events = w.events;
+        state.week.noDoubleBook = w.no_double_book !== false;
+      }
     }
     if (draftRes.data && draftRes.data.is_active) {
       const d = draftRes.data;
