@@ -392,6 +392,8 @@ tr:last-child td { border-bottom: none; }
       <input type="text" id="week-label" placeholder="e.g. Week of Oct 3–5, 2026" style="width:280px;">
     </section>
 
+    <p class="hint" style="margin-bottom:14px;">The times shown next to each Weekend/Red Gym/SAC slot are fixed and shown for reference only. To change actual shift times, use your separate scheduling site, not this app.</p>
+
     <div class="tier-block">
       <div class="tier-head">
         <div>
@@ -1111,6 +1113,18 @@ function escapeHtml(s) {
 }
 
 // ---------- shift/slot setup rendering ----------
+function formatTimeRange(start, end) {
+  if (!start || !end) return 'No time set';
+  const fmt = t => {
+    if (t === '23:59') return '12am';
+    const parts = t.split(':').map(Number);
+    const h = parts[0], m = parts[1] || 0;
+    const period = h < 12 ? 'am' : 'pm';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}${m ? ':' + String(m).padStart(2, '0') : ''}${period}`;
+  };
+  return `${fmt(start)}-${fmt(end)}`;
+}
 function renderShiftList(containerId, arrKey) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
@@ -1122,18 +1136,10 @@ function renderShiftList(containerId, arrKey) {
         ${['Fri', 'Sat', 'Sun', 'Other'].map(d => `<option value="${d}" ${shift.day === d ? 'selected' : ''}>${d}</option>`).join('')}
       </select>
       <input type="text" value="${escapeHtml(shift.label)}" onchange="updateShiftLabel('${arrKey}','${shift.id}', this.value)" style="flex:1; min-width:100px;">
-      <input type="time" value="${shift.start || ''}" onchange="updateShiftTime('${arrKey}','${shift.id}','start', this.value)" style="width:120px;">
-      <span style="color:var(--ink-soft);">to</span>
-      <input type="time" value="${shift.end || ''}" onchange="updateShiftTime('${arrKey}','${shift.id}','end', this.value)" style="width:120px;">
+      <span style="color:var(--ink-soft); font-size:13.5px; white-space:nowrap; min-width:90px;">${formatTimeRange(shift.start, shift.end)}</span>
       <button class="danger-ghost" onclick="removeShift('${arrKey}','${shift.id}')">Remove</button>`;
     container.appendChild(row);
   });
-}
-function updateShiftTime(arrKey, id, field, val) {
-  if (!requireLead()) { renderAllShiftLists(); return; }
-  const s = state.week[arrKey].find(x => x.id === id);
-  if (s) s[field] = val || null;
-  saveState();
 }
 function updateShiftLabel(arrKey, id, val) {
   if (!requireLead()) { renderAllShiftLists(); return; }
