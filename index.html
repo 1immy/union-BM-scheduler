@@ -80,7 +80,8 @@ body.signed-out #panel-roster button,
 body.signed-out #panel-shifts button,
 body.signed-out #panel-draw button:not(#present-toggle-btn),
 body.signed-out #panel-shop button,
-body.signed-out #history-export-btn {
+body.signed-out #history-export-btn,
+body.signed-out #history-manual-btn {
   display: none !important;
 }
 body.present-mode header.top,
@@ -480,7 +481,7 @@ tr:last-child td { border-bottom: none; }
         <div class="row">
           <button class="ghost" onclick="skipToFull()">Skip to full results</button>
           <button class="secondary" onclick="runDraw()">Redraw</button>
-          <button class="secondary" onclick="draftEventSlots()">Fill special events</button>
+          <button class="secondary" onclick="openFillEventsModal()">Fill special events</button>
           <button class="accent" id="finalize-btn" onclick="finalizeWeek()" disabled>Finalize &amp; save to history</button>
         </div>
       </div>
@@ -498,7 +499,7 @@ tr:last-child td { border-bottom: none; }
         <h2 style="margin:0;">Past weeks</h2>
         <div class="row">
           <button class="secondary" id="history-export-btn" onclick="exportHistory()">Export history</button>
-          <button class="secondary" onclick="openManualWeek()">Insert a week manually</button>
+          <button class="secondary" id="history-manual-btn" onclick="openManualWeek()">Insert a week manually</button>
         </div>
       </div>
       <p class="hint">Each finalized week updates the weighting above. Click "More info" on any week for the full detail.</p>
@@ -738,27 +739,27 @@ async function submitForceReset() {
 }
 
 const defaultTier1 = [
-  { label: 'Fri MU Close', day: 'Fri' },
-  { label: 'Fri US Close', day: 'Fri' },
-  { label: 'Sat MU Open', day: 'Sat' },
-  { label: 'Sat US Open', day: 'Sat' },
-  { label: 'Sat MU Close', day: 'Sat' },
-  { label: 'Sat US Close', day: 'Sat' },
-  { label: 'Sun MU Open', day: 'Sun' },
-  { label: 'Sun US Open', day: 'Sun' }
+  { label: 'Fri MU Close', day: 'Fri', start: '16:00', end: '23:59' },
+  { label: 'Fri US Close', day: 'Fri', start: '16:00', end: '23:59' },
+  { label: 'Sat MU Open', day: 'Sat', start: '08:00', end: '16:00' },
+  { label: 'Sat US Open', day: 'Sat', start: '07:00', end: '16:00' },
+  { label: 'Sat MU Close', day: 'Sat', start: '16:00', end: '23:59' },
+  { label: 'Sat US Close', day: 'Sat', start: '16:00', end: '23:59' },
+  { label: 'Sun MU Open', day: 'Sun', start: '08:00', end: '16:00' },
+  { label: 'Sun US Open', day: 'Sun', start: '07:00', end: '16:00' }
 ];
 const defaultRedgym = [
-  { label: 'Fri Close', day: 'Fri' },
-  { label: 'Sat Open', day: 'Sat' },
-  { label: 'Sat Close', day: 'Sat' },
-  { label: 'Sun Open', day: 'Sun' }
+  { label: 'Fri Close', day: 'Fri', start: '16:00', end: '23:59' },
+  { label: 'Sat Open', day: 'Sat', start: '10:00', end: '16:00' },
+  { label: 'Sat Close', day: 'Sat', start: '16:00', end: '23:59' },
+  { label: 'Sun Open', day: 'Sun', start: '10:00', end: '16:00' }
 ];
 const defaultSac = [
-  { label: 'Fri Close', day: 'Fri' },
-  { label: 'Sat Open', day: 'Sat' },
-  { label: 'Sat Close', day: 'Sat' },
-  { label: 'Sun Open', day: 'Sun' },
-  { label: 'Sun Close', day: 'Sun' }
+  { label: 'Fri Close', day: 'Fri', start: '17:00', end: '22:00' },
+  { label: 'Sat Open', day: 'Sat', start: '10:00', end: '16:00' },
+  { label: 'Sat Close', day: 'Sat', start: '16:00', end: '22:00' },
+  { label: 'Sun Open', day: 'Sun', start: '10:00', end: '16:00' },
+  { label: 'Sun Close', day: 'Sun', start: '16:00', end: '22:00' }
 ];
 const defaultShopItems = [
   { id: 'boost', name: 'Front of the Line', desc: 'Adds a one-time credit boost applied immediately, raising your odds on the very next draft.', cost: 80, icon: 'star', effect: 'creditBoost' },
@@ -824,11 +825,11 @@ function freshState() {
     week: {
       label: '',
       weekendDate: null,
-      tier1: defaultTier1.map(t => ({ id: uid(), label: t.label, day: t.day })),
+      tier1: defaultTier1.map(t => ({ id: uid(), label: t.label, day: t.day, start: t.start, end: t.end })),
       tier1b: [],
-      redgym: defaultRedgym.map(t => ({ id: uid(), label: t.label, day: t.day })),
-      sac: defaultSac.map(t => ({ id: uid(), label: t.label, day: t.day })),
-      events: [{ id: uid(), name: 'Badger Bash', active: false, count: 4, volunteers: [] }],
+      redgym: defaultRedgym.map(t => ({ id: uid(), label: t.label, day: t.day, start: t.start, end: t.end })),
+      sac: defaultSac.map(t => ({ id: uid(), label: t.label, day: t.day, start: t.start, end: t.end })),
+      events: [{ id: uid(), name: 'Badger Bash', active: false, count: 4, volunteers: [], day: null, start: null, end: null }],
       noDoubleBook: true
     },
     results: null
@@ -842,8 +843,8 @@ if (!state.shop) state.shop = defaultShopItems.map(i => ({ ...i }));
 state.shop = state.shop.filter(i => i.id !== 'latepass' && i.name !== 'Late Pass');
 if (!state.pointsLog) state.pointsLog = [];
 if (state.week.weekendDate === undefined) state.week.weekendDate = null;
-if (!Array.isArray(state.week.redgym)) state.week.redgym = defaultRedgym.map(t => ({ id: uid(), label: t.label, day: t.day }));
-if (!Array.isArray(state.week.sac)) state.week.sac = defaultSac.map(t => ({ id: uid(), label: t.label, day: t.day }));
+if (!Array.isArray(state.week.redgym)) state.week.redgym = defaultRedgym.map(t => ({ id: uid(), label: t.label, day: t.day, start: t.start, end: t.end }));
+if (!Array.isArray(state.week.sac)) state.week.sac = defaultSac.map(t => ({ id: uid(), label: t.label, day: t.day, start: t.start, end: t.end }));
 if (state.week.bash && !state.week.event && !state.week.events) {
   state.week.event = { name: 'Badger Bash', active: state.week.bash.active, count: state.week.bash.count, volunteers: state.week.bash.volunteers };
   delete state.week.bash;
@@ -852,7 +853,7 @@ if (state.week.event && !state.week.events) {
   state.week.events = [{ id: uid(), ...state.week.event }];
   delete state.week.event;
 }
-if (!state.week.events || !state.week.events.length) state.week.events = [{ id: uid(), name: 'Badger Bash', active: false, count: 4, volunteers: [] }];
+if (!state.week.events || !state.week.events.length) state.week.events = [{ id: uid(), name: 'Badger Bash', active: false, count: 4, volunteers: [], day: null, start: null, end: null }];
 ['tier1', 'tier1b', 'redgym', 'sac'].forEach(key => {
   (state.week[key] || []).forEach(s => { if (!s.day) s.day = inferDay(s.label); });
 });
@@ -1120,10 +1121,19 @@ function renderShiftList(containerId, arrKey) {
       <select onchange="updateShiftDay('${arrKey}','${shift.id}', this.value)" style="width:82px;">
         ${['Fri', 'Sat', 'Sun', 'Other'].map(d => `<option value="${d}" ${shift.day === d ? 'selected' : ''}>${d}</option>`).join('')}
       </select>
-      <input type="text" value="${escapeHtml(shift.label)}" onchange="updateShiftLabel('${arrKey}','${shift.id}', this.value)">
+      <input type="text" value="${escapeHtml(shift.label)}" onchange="updateShiftLabel('${arrKey}','${shift.id}', this.value)" style="flex:1; min-width:100px;">
+      <input type="time" value="${shift.start || ''}" onchange="updateShiftTime('${arrKey}','${shift.id}','start', this.value)" style="width:120px;">
+      <span style="color:var(--ink-soft);">to</span>
+      <input type="time" value="${shift.end || ''}" onchange="updateShiftTime('${arrKey}','${shift.id}','end', this.value)" style="width:120px;">
       <button class="danger-ghost" onclick="removeShift('${arrKey}','${shift.id}')">Remove</button>`;
     container.appendChild(row);
   });
+}
+function updateShiftTime(arrKey, id, field, val) {
+  if (!requireLead()) { renderAllShiftLists(); return; }
+  const s = state.week[arrKey].find(x => x.id === id);
+  if (s) s[field] = val || null;
+  saveState();
 }
 function updateShiftLabel(arrKey, id, val) {
   if (!requireLead()) { renderAllShiftLists(); return; }
@@ -1177,6 +1187,14 @@ function renderEventsList() {
         <div class="row" style="margin-bottom:12px;">
           <label style="font-size:14.5px;color:var(--ink-soft);">Slots needed</label>
           <input type="number" value="${ev.count}" min="1" max="12" style="width:70px;" onchange="updateEventField('${ev.id}','count', Number(this.value)||1)">
+          <label style="font-size:14.5px;color:var(--ink-soft);margin-left:10px;">Day</label>
+          <select onchange="updateEventField('${ev.id}','day', this.value)" style="width:82px;">
+            <option value="">-</option>
+            ${['Fri', 'Sat', 'Sun', 'Other'].map(d => `<option value="${d}" ${ev.day === d ? 'selected' : ''}>${d}</option>`).join('')}
+          </select>
+          <input type="time" value="${ev.start || ''}" onchange="updateEventField('${ev.id}','start', this.value)" style="width:120px;">
+          <span style="color:var(--ink-soft);">to</span>
+          <input type="time" value="${ev.end || ''}" onchange="updateEventField('${ev.id}','end', this.value)" style="width:120px;">
         </div>
         <p class="hint" style="margin-bottom:10px;">Volunteers (already signed up):</p>
         <div id="event-volunteers-${ev.id}"></div>
@@ -1202,13 +1220,13 @@ function renderEventVolunteers(eventId) {
 }
 function addEvent() {
   if (!requireLead()) return;
-  state.week.events.push({ id: uid(), name: 'New Event', active: true, count: 4, volunteers: [] });
+  state.week.events.push({ id: uid(), name: 'New Event', active: true, count: 4, volunteers: [], day: null, start: null, end: null });
   saveState(); renderEventsList();
 }
 function removeEvent(id) {
   if (!requireLead()) return;
   state.week.events = state.week.events.filter(e => e.id !== id);
-  if (!state.week.events.length) state.week.events.push({ id: uid(), name: 'Badger Bash', active: false, count: 4, volunteers: [] });
+  if (!state.week.events.length) state.week.events.push({ id: uid(), name: 'Badger Bash', active: false, count: 4, volunteers: [], day: null, start: null, end: null });
   saveState(); renderEventsList();
 }
 function updateEventField(id, field, val) {
@@ -1335,7 +1353,7 @@ function performDraw() {
       assignedName: picked ? picked.name : '(not enough people)',
       workingName: picked ? picked.name : '(not enough people)',
       swapped: false, swapEligible: true, candidatePool: snapshot, pickedOption: null,
-      day: shift.day || 'Other', building: buildingFor(1, shift.label)
+      day: shift.day || 'Other', building: buildingFor(1, shift.label), start: shift.start || null, end: shift.end || null
     });
   });
 
@@ -1347,7 +1365,7 @@ function performDraw() {
       assignedName: picked ? picked.name : '(not enough people)',
       workingName: picked ? picked.name : '(not enough people)',
       swapped: false, swapEligible: true, candidatePool: snapshot, pickedOption: null,
-      day: shift.day || 'Other', building: 'Red Gym'
+      day: shift.day || 'Other', building: 'Red Gym', start: shift.start || null, end: shift.end || null
     });
   });
 
@@ -1359,7 +1377,7 @@ function performDraw() {
       assignedName: picked ? picked.name : '(not enough people)',
       workingName: picked ? picked.name : '(not enough people)',
       swapped: false, swapEligible: true, candidatePool: snapshot, pickedOption: null,
-      day: shift.day || 'Other', building: 'SAC'
+      day: shift.day || 'Other', building: 'SAC', start: shift.start || null, end: shift.end || null
     });
   });
 
@@ -1380,7 +1398,38 @@ function performDraw() {
   document.querySelector('.tab-btn[data-tab="draw"]').click();
 }
 
-function draftEventSlots() {
+function timesOverlap(aStart, aEnd, bStart, bEnd) {
+  const toMin = t => { const parts = String(t || '00:00').split(':').map(Number); return parts[0] * 60 + (parts[1] || 0); };
+  return toMin(aStart) < toMin(bEnd) && toMin(bStart) < toMin(aEnd);
+}
+function isBusyAt(managerName, day, start, end) {
+  if (!state.results || !day || !start || !end) return false;
+  return state.results.rows.some(r => r.workingName === managerName && r.day === day && r.start && r.end && timesOverlap(r.start, r.end, start, end));
+}
+function eventRemainingNeed(ev) {
+  if (!state.results) return ev.count || 0;
+  const filled = state.results.rows.filter(r => r.tier === 2 && r.sourceEventId === ev.id).length;
+  return Math.max(0, (ev.count || 0) - filled);
+}
+function ensureVolunteersFilled(ev) {
+  const filled = state.results.rows.filter(r => r.tier === 2 && r.sourceEventId === ev.id);
+  const takenNames = new Set(filled.map(r => r.workingName));
+  const remainingSlots = Math.max(0, (ev.count || 0) - filled.length);
+  const volunteers = ev.volunteers.filter(v => v.trim() && !takenNames.has(v.trim()));
+  let added = false;
+  volunteers.slice(0, remainingSlots).forEach(v => {
+    state.results.rows.push({
+      id: uid(), tier: 2, eventName: ev.name || 'Special Event', shiftLabel: (ev.name || 'Special Event') + ' (volunteer)',
+      assignedName: v, workingName: v, swapped: false, swapEligible: true, candidatePool: null,
+      day: ev.day || 'Other', start: ev.start || null, end: ev.end || null, sourceEventId: ev.id
+    });
+    added = true;
+  });
+  if (added) state.results.revealedIndex = state.results.rows.length - 1;
+  return added;
+}
+
+function openFillEventsModal() {
   if (!requireLead()) return;
   if (!state.results) { toast('Run the building draft first'); return; }
   if (state.results.revealedIndex < state.results.rows.length - 1) {
@@ -1389,42 +1438,92 @@ function draftEventSlots() {
   }
   const activeEvents = state.week.events.filter(ev => ev.active);
   if (!activeEvents.length) { toast('No special events are marked "Happening this week"'); return; }
+  let anyAdded = false;
+  activeEvents.forEach(ev => { if (ensureVolunteersFilled(ev)) anyAdded = true; });
+  if (anyAdded) { saveState(); renderResults(); }
+  renderFillEventsModal();
+}
+function renderFillEventsModal() {
+  const activeEvents = state.week.events.filter(ev => ev.active);
+  const modal = document.getElementById('modal-root');
+  const stillNeeded = activeEvents.filter(ev => eventRemainingNeed(ev) > 0);
+  if (!stillNeeded.length) {
+    modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal">
+      <h3>Special events</h3>
+      <p class="hint">Everything's filled, volunteers covered it or it's already assigned.</p>
+      <button class="secondary" onclick="closeModal()">Close</button>
+    </div></div>`;
+    return;
+  }
+  const allowBusyEl = document.getElementById('fill-events-allow-busy');
+  const allowBusy = allowBusyEl ? allowBusyEl.checked : false;
+  let html = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()" style="max-width:560px;">
+    <h3>Fill special events</h3>
+    <label class="checkbox-row" style="margin-bottom:12px;"><input type="checkbox" id="fill-events-allow-busy" onchange="renderFillEventsModal()" ${allowBusy ? 'checked' : ''}> Allow someone already working at that time</label>`;
 
-  const noDouble = state.week.noDoubleBook;
-  const alreadyUsed = new Set(state.results.rows.map(r => r.workingName));
-  let pool = state.managers.filter(m => !m.skipNext && !m.benched && (!noDouble || !alreadyUsed.has(m.name)));
-  const newRows = [];
-  let draftedCount = 0;
-
-  activeEvents.forEach(ev => {
-    const eventName = ev.name || 'Special Event';
-    const need = ev.count;
-    const volunteers = ev.volunteers.filter(v => v.trim());
-    const filled = [];
-    volunteers.slice(0, need).forEach(v => filled.push({ name: v, viaVolunteer: true }));
-    if (noDouble) pool = pool.filter(m => !volunteers.includes(m.name));
-    while (filled.length < need && pool.length > 0) {
-      const snapshot = pool.map(m => m.name);
-      const picked = weightedPickAndRemove(pool);
-      state.results.drawOrder.push(picked.name);
-      if (noDouble) pool = pool.filter(m => m.id !== picked.id);
-      filled.push({ name: picked.name, viaVolunteer: false, candidatePool: snapshot });
-      draftedCount++;
-    }
-    filled.forEach(f => {
-      newRows.push({
-        id: uid(), tier: 2, eventName, shiftLabel: eventName + (f.viaVolunteer ? ' (volunteer)' : ''),
-        assignedName: f.name, workingName: f.name, swapped: false, swapEligible: true,
-        candidatePool: f.viaVolunteer ? null : f.candidatePool
-      });
-    });
+  stillNeeded.forEach(ev => {
+    const need = eventRemainingNeed(ev);
+    const timeLabel = ev.day && ev.start && ev.end ? `${ev.day} ${ev.start}-${ev.end}` : 'no time set yet';
+    const candidates = state.managers.filter(m => !m.skipNext && !m.benched && (allowBusy || !isBusyAt(m.name, ev.day, ev.start, ev.end)));
+    html += `<div class="tier-block" style="margin-bottom:10px;">
+      <div class="tier-head"><div><div class="name">${escapeHtml(ev.name || 'Special Event')}</div><div class="desc">${escapeHtml(timeLabel)} &middot; ${need} slot${need === 1 ? '' : 's'} left</div></div></div>
+      <div class="tier-body">
+        ${candidates.length
+          ? candidates.map(m => `<button class="secondary cand" onclick="assignEventWorker('${ev.id}','${m.id}')">${escapeHtml(m.name)}${m.benched ? ' (benched)' : ''}</button>`).join('')
+          : `<p class="hint">No one free at that time. Try allowing someone already busy, or set the event's day/time in Shift Setup.</p>`}
+      </div>
+    </div>`;
   });
 
-  if (!newRows.length) { toast('Nothing to add, no events need filling'); return; }
-  state.results.rows.push(...newRows);
+  html += `<div class="row" style="margin-top:6px;">
+    <button class="accent" onclick="autoFillRemainingEvents()">Auto-fill remaining</button>
+    <button class="ghost" onclick="closeModal()">Done</button>
+  </div></div></div>`;
+  modal.innerHTML = html;
+}
+function assignEventWorker(eventId, managerId) {
+  const ev = state.week.events.find(e => e.id === eventId);
+  const m = state.managers.find(x => x.id === managerId);
+  if (!ev || !m) return;
+  state.results.rows.push({
+    id: uid(), tier: 2, eventName: ev.name || 'Special Event', shiftLabel: (ev.name || 'Special Event'),
+    assignedName: m.name, workingName: m.name, swapped: false, swapEligible: true, candidatePool: null,
+    day: ev.day || 'Other', start: ev.start || null, end: ev.end || null, sourceEventId: ev.id
+  });
+  state.results.drawOrder.push(m.name);
+  state.results.revealedIndex = state.results.rows.length - 1;
   saveState();
   renderResults();
-  toast(draftedCount ? `Added ${newRows.length} event slot(s), ${draftedCount} drafted` : `Added ${newRows.length} volunteer-filled event slot(s)`);
+  renderFillEventsModal();
+  toast(`${m.name} assigned to ${ev.name || 'Special Event'}`);
+}
+function autoFillRemainingEvents() {
+  const allowBusyEl = document.getElementById('fill-events-allow-busy');
+  const allowBusy = allowBusyEl ? allowBusyEl.checked : false;
+  const activeEvents = state.week.events.filter(ev => ev.active);
+  let filledAny = false;
+  activeEvents.forEach(ev => {
+    let need = eventRemainingNeed(ev);
+    while (need > 0) {
+      const candidates = state.managers.filter(m => !m.skipNext && !m.benched && (allowBusy || !isBusyAt(m.name, ev.day, ev.start, ev.end)));
+      if (!candidates.length) break;
+      const picked = weightedPickAndRemove(candidates);
+      state.results.rows.push({
+        id: uid(), tier: 2, eventName: ev.name || 'Special Event', shiftLabel: (ev.name || 'Special Event'),
+        assignedName: picked.name, workingName: picked.name, swapped: false, swapEligible: true, candidatePool: null,
+        day: ev.day || 'Other', start: ev.start || null, end: ev.end || null, sourceEventId: ev.id
+      });
+      state.results.drawOrder.push(picked.name);
+      need--;
+      filledAny = true;
+    }
+  });
+  if (!filledAny) { toast('Nothing could be auto-filled at those times'); return; }
+  state.results.revealedIndex = state.results.rows.length - 1;
+  saveState();
+  renderResults();
+  renderFillEventsModal();
+  toast('Auto-filled what it could');
 }
 
 function tierBadge(t) {
@@ -2045,6 +2144,7 @@ function renderHistory() {
         <span>${escapeHtml(week.label)} <span style="color:var(--ink-soft); font-weight:500;">(${d.toLocaleDateString()})</span>${week.setup && week.setup.manual ? ' <span class="badge tier2">Manual</span>' : ''}</span>
         <div class="row">
           <button class="ghost" onclick="toggleWeekDetail('${week.id}')">${isOpen ? 'Hide info' : 'More info'}</button>
+          <button class="ghost" onclick="openEditHistory('${week.id}')">Edit</button>
           <button class="danger-ghost" onclick="deleteHistory('${week.id}')">Delete</button>
         </div>
       </div>
@@ -2061,6 +2161,77 @@ async function deleteHistory(id) {
   if (sb) {
     const { error } = await sb.rpc('rpc_delete_history', { p_token: session.token, p_id: id });
     if (error) toast('Could not delete on server: ' + error.message);
+  }
+}
+function openEditHistory(id) {
+  if (!requireLead()) return;
+  const week = state.history.find(w => w.id === id);
+  if (!week) return;
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Edit "${escapeHtml(week.label)}"</h3>
+    <p class="hint">Correcting this reverses the weighting it originally caused and reapplies it based on the corrected order. Points and history for other weeks are untouched.</p>
+    <input type="text" id="edit-week-label" value="${escapeHtml(week.label)}" style="width:100%;margin-bottom:10px;">
+    <textarea id="edit-week-order" rows="8" style="width:100%;margin-bottom:10px;">${escapeHtml(week.order.join('\n'))}</textarea>
+    <p class="hint" id="edit-week-match-preview" style="margin-bottom:10px;"></p>
+    <div class="row">
+      <button class="accent" onclick="submitEditHistory('${id}')">Save correction</button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+  document.getElementById('edit-week-order').addEventListener('input', () => {
+    const names = document.getElementById('edit-week-order').value.split('\n').map(s => s.trim()).filter(Boolean);
+    const preview = document.getElementById('edit-week-match-preview');
+    const unmatched = names.filter(n => !state.managers.some(m => m.name.toLowerCase() === n.toLowerCase()));
+    preview.innerHTML = !names.length ? '' : (unmatched.length
+      ? `<span style="color:var(--danger);">${unmatched.length} name${unmatched.length === 1 ? '' : 's'} don't match the roster: ${escapeHtml(unmatched.join(', '))}</span>`
+      : `<span style="color:#7CE18B;">All ${names.length} names matched the roster.</span>`);
+  });
+}
+async function submitEditHistory(id) {
+  const week = state.history.find(w => w.id === id);
+  if (!week) return;
+  const label = document.getElementById('edit-week-label').value.trim() || week.label;
+  const rawNames = document.getElementById('edit-week-order').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!rawNames.length) { toast('Enter at least one name'); return; }
+
+  const newOrder = [];
+  const unmatched = [];
+  rawNames.forEach(n => {
+    const m = state.managers.find(x => x.name.toLowerCase() === n.toLowerCase());
+    if (m) newOrder.push(m.name); else unmatched.push(n);
+  });
+  if (unmatched.length) { toast(`Not saved: these don't match the roster: ${unmatched.join(', ')}`); return; }
+
+  // Reverse the old credit impact from this week's original order.
+  const oldOrder = week.order || [];
+  if (oldOrder.length) {
+    const oldMid = (oldOrder.length + 1) / 2;
+    oldOrder.forEach((name, i) => {
+      const person = state.managers.find(mgr => mgr.name === name);
+      if (person) person.credit = Math.round(((person.credit || 0) - ((i + 1) - oldMid)) * 10) / 10;
+    });
+  }
+  // Apply the corrected order's credit impact.
+  const newMid = (newOrder.length + 1) / 2;
+  newOrder.forEach((name, i) => {
+    const person = state.managers.find(mgr => mgr.name === name);
+    if (person) person.credit = Math.round(((person.credit || 0) + ((i + 1) - newMid)) * 10) / 10;
+  });
+
+  const weightsUsed = state.managers.map(m => ({ name: m.name, weight: computeWeight(m) }));
+  const rows = newOrder.map((name, i) => ({ shiftLabel: `Manual entry, pick ${i + 1}`, tier: 0, workingName: name, assignedName: name, pickedOption: null, swapped: false }));
+  const setup = { ...(week.setup || {}), corrected: true };
+
+  week.label = label; week.order = newOrder; week.weights = weightsUsed; week.rows = rows; week.setup = setup;
+  saveState(); renderRoster(); renderHistory(); closeModal();
+  toast(`"${label}" corrected and weighting reapplied`);
+
+  if (sb) {
+    const { error } = await sb.rpc('rpc_update_history', {
+      p_token: session.token, p_id: id, p_label: label, p_draw_order: newOrder, p_weights: weightsUsed, p_setup: setup, p_rows: rows
+    });
+    if (error) toast('Could not save correction to server: ' + error.message);
   }
 }
 
