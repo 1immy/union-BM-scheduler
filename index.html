@@ -554,6 +554,16 @@ tr:last-child td { border-bottom: none; }
       </div>
     </section>
     <div id="shop-grid" class="shop-grid"></div>
+
+    <section class="card lead-only" style="margin-top:16px;">
+      <h2>Recent redemptions</h2>
+      <p class="hint">Only visible to signed-in leads.</p>
+      <div id="shop-log"></div>
+      <div class="empty-state" id="shop-log-empty" style="display:none;">
+        <div class="big">Nothing redeemed yet</div>
+        Redemptions will show up here.
+      </div>
+    </section>
   </div>
 
     </div>
@@ -2284,19 +2294,19 @@ async function submitEditHistory(id) {
 
 // ---------- Brownie Points ----------
 const pointPresets = [
-  { label: 'Picked up an extra shift', delta: 5 },
-  { label: 'Covered a swap for someone', delta: 5 },
-  { label: 'Helped resolve a scheduling conflict', delta: 5 },
   { label: 'Shoutout from another department', delta: 8 },
   { label: 'Worked a special event', delta: 8 },
-  { label: 'Great night report', delta: 3 },
   { label: 'Went above and beyond', delta: 8 },
   { label: 'Solved a critical event AV issue in time', delta: 8 },
   { label: 'Handled a disruptive patron well', delta: 8 },
   { label: 'Exceptional professionalism', delta: 8 },
-  { label: 'Unexcused absence', delta: -100 },
+  { label: 'Picked up an extra shift', delta: 5 },
+  { label: 'Covered a swap for someone', delta: 5 },
+  { label: 'Helped resolve a scheduling conflict', delta: 5 },
+  { label: 'Great night report', delta: 3 },
   { label: 'Late arrival', delta: -5 },
-  { label: "Didn't save the night report", delta: -5 }
+  { label: "Didn't save the night report", delta: -5 },
+  { label: 'Unexcused absence', delta: -100 }
 ];
 
 const LEAD_NAME_KEY = 'bm-last-lead-name';
@@ -2439,11 +2449,65 @@ function renderShop() {
       <div class="row" style="justify-content:space-between;align-items:center;">
         <span class="shop-cost">${item.cost} pts</span>
         <div class="row" style="gap:6px;">
+          <button class="ghost" onclick="openEditShopItem('${item.id}')">Edit</button>
           <button class="ghost" onclick="removeShopItem('${item.id}')">Remove</button>
           <button class="accent" onclick="openRedeem('${item.id}')">Redeem</button>
         </div>
       </div>`;
     grid.appendChild(card);
+  });
+  renderShopLog();
+}
+function openEditShopItem(id) {
+  if (!requireLead()) return;
+  const item = state.shop.find(i => i.id === id);
+  if (!item) return;
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Edit shop item</h3>
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Name</label>
+    <input type="text" id="edit-shop-name" value="${escapeHtml(item.name)}" style="width:100%;margin-bottom:12px;" onkeydown="if(event.key==='Enter') submitEditShopItem('${id}')">
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Description</label>
+    <input type="text" id="edit-shop-desc" value="${escapeHtml(item.desc || '')}" style="width:100%;margin-bottom:12px;" onkeydown="if(event.key==='Enter') submitEditShopItem('${id}')">
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Point cost</label>
+    <input type="number" id="edit-shop-cost" value="${item.cost}" min="1" style="width:120px;margin-bottom:14px;" onkeydown="if(event.key==='Enter') submitEditShopItem('${id}')">
+    <div class="row">
+      <button class="accent" onclick="submitEditShopItem('${id}')">Save <span class="key-hint">&#9166;</span></button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+}
+async function submitEditShopItem(id) {
+  const item = state.shop.find(i => i.id === id);
+  if (!item) return;
+  const name = document.getElementById('edit-shop-name').value.trim();
+  const desc = document.getElementById('edit-shop-desc').value.trim();
+  const cost = Number(document.getElementById('edit-shop-cost').value);
+  if (!name) { toast('Enter a name'); return; }
+  if (!cost || cost <= 0) { toast('Enter a point cost'); return; }
+  item.name = name; item.desc = desc; item.cost = cost;
+  renderShop(); closeModal();
+  toast(`${name} updated`);
+  if (sb) {
+    const { error } = await sb.rpc('rpc_update_shop_item', { p_token: session.token, p_id: id, p_name: name, p_description: desc, p_cost: cost });
+    if (error) toast('Could not save to server: ' + error.message);
+  }
+}
+function renderShopLog() {
+  const list = document.getElementById('shop-log');
+  if (!list) return;
+  list.innerHTML = '';
+  const entries = state.pointsLog.filter(e => e.reason && e.reason.indexOf('Redeemed:') === 0)
+    .sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 20);
+  const empty = document.getElementById('shop-log-empty');
+  if (empty) empty.style.display = entries.length ? 'none' : 'block';
+  entries.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'log-entry';
+    const balanceText = (e.balanceBefore !== undefined && e.balanceBefore !== null && e.balanceAfter !== undefined && e.balanceAfter !== null)
+      ? ` (${e.balanceBefore} -> ${e.balanceAfter})` : '';
+    div.innerHTML = `<span class="who">${escapeHtml(e.name)}</span> <span class="delta-neg">${e.delta} pts</span>${balanceText} - ${escapeHtml(e.reason)}<span class="when">${new Date(e.date).toLocaleString()}</span>`;
+    list.appendChild(div);
   });
 }
 async function removeShopItem(id) {
@@ -2533,7 +2597,7 @@ async function submitRedeem(itemId) {
   saveState();
   state.pointsLog.unshift({ id: uid(), date: new Date().toISOString(), name: m.name, delta: -item.cost, reason: `Redeemed: ${item.name}`, balanceBefore: before, balanceAfter: after });
   pointsLogPage = 1;
-  renderPoints(); renderRoster(); closeModal();
+  renderPoints(); renderRoster(); renderShopLog(); closeModal();
   toast(`${m.name} redeemed ${item.name}`);
   if (sb) {
     const { error } = await sb.rpc('rpc_insert_points_log', {
