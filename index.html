@@ -1204,7 +1204,7 @@ function renderEventsList() {
         </div>
         <p class="hint" style="margin-bottom:10px;">Volunteers (already signed up):</p>
         <div id="event-volunteers-${ev.id}"></div>
-        <button class="secondary" onclick="addEventVolunteer('${ev.id}')">+ Add volunteer</button>
+        <button class="secondary" onclick="openAddEventVolunteer('${ev.id}')">+ Add volunteer</button>
       </div>`;
     container.appendChild(block);
     renderEventVolunteers(ev.id);
@@ -1250,13 +1250,39 @@ function updateEventActive(id, checked) {
   }
   saveState(); renderEventsList();
 }
-function addEventVolunteer(eventId) {
+function openAddEventVolunteer(eventId) {
   if (!requireLead()) return;
-  const name = prompt('Volunteer name');
-  if (!name || !name.trim()) return;
   const ev = state.week.events.find(e => e.id === eventId);
-  ev.volunteers.push(name.trim());
-  saveState(); renderEventVolunteers(eventId);
+  if (!ev) return;
+  const already = new Set(ev.volunteers.map(v => v.toLowerCase()));
+  const candidates = state.managers.filter(m => !already.has(m.name.toLowerCase()));
+  const modal = document.getElementById('modal-root');
+  if (!candidates.length) {
+    modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal">
+      <h3>No one left to add</h3>
+      <p class="hint">Everyone on the roster is already down as a volunteer for this event.</p>
+      <button class="secondary" onclick="closeModal()">Close</button>
+    </div></div>`;
+    return;
+  }
+  const hasTimeSet = ev.day && ev.start && ev.end;
+  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Add a volunteer - ${escapeHtml(ev.name || 'Special Event')}</h3>
+    ${hasTimeSet ? '' : '<p class="hint">Set this event\'s day and time in Shift Setup to catch shift conflicts automatically.</p>'}
+    ${candidates.map(m => {
+      const conflict = hasTimeSet && isBusyAt(m.name, ev.day, ev.start, ev.end);
+      return `<button class="secondary cand" onclick="confirmAddEventVolunteer('${eventId}','${m.id}')">${escapeHtml(m.name)}${conflict ? ' <span style="color:var(--warm); font-size:12px;">(already has a shift then)</span>' : ''}</button>`;
+    }).join('')}
+    <button class="ghost" onclick="closeModal()" style="margin-top:6px;">Cancel</button>
+  </div></div>`;
+}
+function confirmAddEventVolunteer(eventId, managerId) {
+  const ev = state.week.events.find(e => e.id === eventId);
+  const m = state.managers.find(x => x.id === managerId);
+  if (!ev || !m) return;
+  ev.volunteers.push(m.name);
+  saveState(); renderEventVolunteers(eventId); closeModal();
+  toast(`${m.name} added as a volunteer`);
 }
 function updateEventVolunteer(eventId, i, val) {
   if (!requireLead()) { renderEventVolunteers(eventId); return; }
@@ -1420,21 +1446,27 @@ function eventRemainingNeed(ev) {
 function ensureVolunteersFilled(ev) {
   const filled = state.results.rows.filter(r => r.tier === 2 && r.sourceEventId === ev.id);
   const takenNames = new Set(filled.map(r => r.workingName));
-  const remainingSlots = Math.max(0, (ev.count || 0) - filled.length);
+  let slotsLeft = Math.max(0, (ev.count || 0) - filled.length);
   const volunteers = ev.volunteers.filter(v => v.trim() && !takenNames.has(v.trim()));
+  const hasTimeSet = ev.day && ev.start && ev.end;
   let added = false;
-  volunteers.slice(0, remainingSlots).forEach(v => {
+  const bumped = [];
+  volunteers.forEach(v => {
+    if (slotsLeft <= 0) return;
+    if (hasTimeSet && isBusyAt(v, ev.day, ev.start, ev.end)) { bumped.push(v); return; }
     state.results.rows.push({
       id: uid(), tier: 2, eventName: ev.name || 'Special Event', shiftLabel: (ev.name || 'Special Event') + ' (volunteer)',
       assignedName: v, workingName: v, swapped: false, swapEligible: true, candidatePool: null,
       day: ev.day || 'Other', start: ev.start || null, end: ev.end || null, sourceEventId: ev.id
     });
     added = true;
+    slotsLeft--;
   });
   if (added) state.results.revealedIndex = state.results.rows.length - 1;
-  return added;
+  return { added, bumped };
 }
 
+let lastBumpedVolunteers = [];
 function openFillEventsModal() {
   if (!requireLead()) return;
   if (!state.results) { toast('Run the building draft first'); return; }
@@ -1445,8 +1477,16 @@ function openFillEventsModal() {
   const activeEvents = state.week.events.filter(ev => ev.active);
   if (!activeEvents.length) { toast('No special events are marked "Happening this week"'); return; }
   let anyAdded = false;
-  activeEvents.forEach(ev => { if (ensureVolunteersFilled(ev)) anyAdded = true; });
+  lastBumpedVolunteers = [];
+  activeEvents.forEach(ev => {
+    const result = ensureVolunteersFilled(ev);
+    if (result.added) anyAdded = true;
+    if (result.bumped.length) lastBumpedVolunteers.push({ event: ev.name || 'Special Event', names: result.bumped });
+  });
   if (anyAdded) { saveState(); renderResults(); }
+  if (lastBumpedVolunteers.length) {
+    toast(`Needs a replacement, already has a shift then: ${lastBumpedVolunteers.map(b => b.names.join(', ')).join(', ')}`);
+  }
   renderFillEventsModal();
 }
 function renderFillEventsModal() {
@@ -1465,6 +1505,7 @@ function renderFillEventsModal() {
   const allowBusy = allowBusyEl ? allowBusyEl.checked : false;
   let html = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()" style="max-width:560px;">
     <h3>Fill special events</h3>
+    ${lastBumpedVolunteers.length ? `<p class="hint" style="color:var(--warm);">Needs a replacement, already has a shift then: ${lastBumpedVolunteers.map(b => `${escapeHtml(b.names.join(', '))} (${escapeHtml(b.event)})`).join('; ')}</p>` : ''}
     <label class="checkbox-row" style="margin-bottom:12px;"><input type="checkbox" id="fill-events-allow-busy" onchange="renderFillEventsModal()" ${allowBusy ? 'checked' : ''}> Allow someone already working at that time</label>`;
 
   stillNeeded.forEach(ev => {
