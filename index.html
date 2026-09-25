@@ -480,10 +480,11 @@ tr:last-child td { border-bottom: none; }
         <div class="row">
           <button class="ghost" onclick="skipToFull()">Skip to full results</button>
           <button class="secondary" onclick="runDraw()">Redraw</button>
+          <button class="secondary" onclick="draftEventSlots()">Fill special events</button>
           <button class="accent" id="finalize-btn" onclick="finalizeWeek()" disabled>Finalize &amp; save to history</button>
         </div>
       </div>
-      <p class="hint">The order is already locked in. Draw just reveals it. Swap only offers names that haven't been revealed yet, as Rule 2 intends.</p>
+      <p class="hint">The order is already locked in. Draw just reveals it. Buildings come first: once every building pick is revealed, use "Fill special events" to cover Special Event slots separately. Swap can reassign any pick to anyone on the roster or bench.</p>
       <div id="status-board" class="status-board"></div>
       <div id="revealed-list"></div>
       <div id="reveal-stage"></div>
@@ -762,7 +763,10 @@ const defaultSac = [
 const defaultShopItems = [
   { id: 'boost', name: 'Front of the Line', desc: 'Adds a one-time credit boost applied immediately, raising your odds on the very next draft.', cost: 80, icon: 'star', effect: 'creditBoost' },
   { id: 'weekoff', name: 'Guaranteed Weekend Off', desc: 'Sit out the next draft entirely. You keep your credit for the week after.', cost: 150, icon: 'calendar', effect: 'skipNext' },
-  { id: 'brownie', name: 'An Actual Brownie', desc: 'Redeem for a real brownie from the leads. The original brownie point.', cost: 20, icon: 'brownie', effect: 'honor' }
+  { id: 'brownie', name: 'An Actual Brownie', desc: 'Redeem for a real brownie from the leads. The original brownie point.', cost: 20, icon: 'brownie', effect: 'honor' },
+  { id: 'shoutout', name: 'Public Shoutout', desc: 'Called out by name at the next team meeting or in the group chat for something you did well.', cost: 15, icon: 'star', effect: 'honor' },
+  { id: 'breakpriority', name: 'Priority for Break Scheduling', desc: "First pick when it's time to set the schedule for a school break or summer.", cost: 100, icon: 'calendar', effect: 'honor' },
+  { id: 'playlist', name: 'Pick the Shift Playlist', desc: 'Your music, your call, for one shift.', cost: 10, icon: 'gift', effect: 'honor' }
 ];
 
 function inferDay(label) {
@@ -1288,8 +1292,7 @@ function runDraw() {
   closeModal();
 
   const eligible = state.managers.filter(m => !m.skipNext && !m.benched);
-  const eventSlots = state.week.events.filter(ev => ev.active).reduce((s, ev) => s + (ev.count || 0), 0);
-  const totalSlots = state.week.tier1.length + state.week.tier1b.length + eventSlots + state.week.redgym.length + state.week.sac.length;
+  const totalSlots = state.week.tier1.length + state.week.tier1b.length + state.week.redgym.length + state.week.sac.length;
 
   if (totalSlots > eligible.length) {
     const short = totalSlots - eligible.length;
@@ -1336,27 +1339,6 @@ function performDraw() {
     });
   });
 
-  state.week.events.filter(ev => ev.active).forEach(ev => {
-    const eventName = ev.name || 'Special Event';
-    const need = ev.count;
-    const volunteers = ev.volunteers.filter(v => v.trim());
-    const filled = [];
-    volunteers.slice(0, need).forEach(v => filled.push({ name: v, viaVolunteer: true }));
-    if (noDouble) pool = pool.filter(m => !volunteers.includes(m.name));
-    while (filled.length < need && pool.length > 0) {
-      const snapshot = pool.map(m => m.name);
-      const picked = drawOne(pool);
-      filled.push({ name: picked.name, viaVolunteer: false, candidatePool: snapshot });
-    }
-    filled.forEach(f => {
-      results.push({
-        id: uid(), tier: 2, eventName, shiftLabel: eventName + (f.viaVolunteer ? ' (volunteer)' : ''),
-        assignedName: f.name, workingName: f.name, swapped: false, swapEligible: true,
-        candidatePool: f.viaVolunteer ? null : f.candidatePool
-      });
-    });
-  });
-
   state.week.redgym.forEach((shift, idx) => {
     const snapshot = pool.map(m => m.name);
     const picked = drawOne(pool);
@@ -1398,6 +1380,53 @@ function performDraw() {
   document.querySelector('.tab-btn[data-tab="draw"]').click();
 }
 
+function draftEventSlots() {
+  if (!requireLead()) return;
+  if (!state.results) { toast('Run the building draft first'); return; }
+  if (state.results.revealedIndex < state.results.rows.length - 1) {
+    toast('Finish revealing the building picks first, buildings come first');
+    return;
+  }
+  const activeEvents = state.week.events.filter(ev => ev.active);
+  if (!activeEvents.length) { toast('No special events are marked "Happening this week"'); return; }
+
+  const noDouble = state.week.noDoubleBook;
+  const alreadyUsed = new Set(state.results.rows.map(r => r.workingName));
+  let pool = state.managers.filter(m => !m.skipNext && !m.benched && (!noDouble || !alreadyUsed.has(m.name)));
+  const newRows = [];
+  let draftedCount = 0;
+
+  activeEvents.forEach(ev => {
+    const eventName = ev.name || 'Special Event';
+    const need = ev.count;
+    const volunteers = ev.volunteers.filter(v => v.trim());
+    const filled = [];
+    volunteers.slice(0, need).forEach(v => filled.push({ name: v, viaVolunteer: true }));
+    if (noDouble) pool = pool.filter(m => !volunteers.includes(m.name));
+    while (filled.length < need && pool.length > 0) {
+      const snapshot = pool.map(m => m.name);
+      const picked = weightedPickAndRemove(pool);
+      state.results.drawOrder.push(picked.name);
+      if (noDouble) pool = pool.filter(m => m.id !== picked.id);
+      filled.push({ name: picked.name, viaVolunteer: false, candidatePool: snapshot });
+      draftedCount++;
+    }
+    filled.forEach(f => {
+      newRows.push({
+        id: uid(), tier: 2, eventName, shiftLabel: eventName + (f.viaVolunteer ? ' (volunteer)' : ''),
+        assignedName: f.name, workingName: f.name, swapped: false, swapEligible: true,
+        candidatePool: f.viaVolunteer ? null : f.candidatePool
+      });
+    });
+  });
+
+  if (!newRows.length) { toast('Nothing to add, no events need filling'); return; }
+  state.results.rows.push(...newRows);
+  saveState();
+  renderResults();
+  toast(draftedCount ? `Added ${newRows.length} event slot(s), ${draftedCount} drafted` : `Added ${newRows.length} volunteer-filled event slot(s)`);
+}
+
 function tierBadge(t) {
   const map = { 1: ['tier1', 'Weekend'], 2: ['tier2', 'Special Event'], 3: ['tier3', 'Red Gym'], 4: ['tier4', 'SAC'] };
   const [cls, label] = map[t];
@@ -1428,9 +1457,12 @@ function tierOptionsFor(tier) {
 function buildResultRow(r, i) {
   const row = document.createElement('div');
   row.className = 'result-row';
+  const isEmpty = r.workingName === '(not enough people)';
   const assignedManager = state.managers.find(m => m.name === r.assignedName);
   const hasInsurance = !r.swapEligible && r.tier === 1 && assignedManager && assignedManager.swapInsurance > 0;
-  const swapBtn = (r.swapEligible || hasInsurance) ? `<button class="ghost" onclick="openSwap('${r.id}')">Swap${hasInsurance ? ' (insured)' : ''}</button>` : '';
+  const swapBtn = isEmpty
+    ? `<button class="ghost" onclick="openFillEmpty('${r.id}')">Fill</button>`
+    : ((r.swapEligible || hasInsurance) ? `<button class="ghost" onclick="openSwap('${r.id}')">Swap${hasInsurance ? ' (insured)' : ''}</button>` : '');
 
   let pickerHtml = '';
   const options = tierOptionsFor(r.tier);
@@ -1448,7 +1480,7 @@ function buildResultRow(r, i) {
     <div class="result-main">
       <div class="shift-name">${escapeHtml(r.shiftLabel)} ${tierBadge(r.tier)}</div>
       <div class="assign-line">
-        Up to pick: <span class="who">${escapeHtml(nicknameFor(r.workingName))}</span>
+        ${isEmpty ? 'Not filled' : 'Up to pick:'} <span class="who">${escapeHtml(isEmpty ? '' : nicknameFor(r.workingName))}</span>
         ${r.swapped ? `<span class="swap-note"> (swapped for ${escapeHtml(r.assignedName)})</span>` : ''}
       </div>
       ${pickerHtml}
@@ -1656,6 +1688,36 @@ function skipToFull() {
   saveState(); renderResults();
 }
 
+function openFillEmpty(rowId) {
+  if (!requireLead()) return;
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Fill this pick</h3>
+    <label class="checkbox-row" style="margin-bottom:10px;"><input type="checkbox" id="fill-allow-dup" onchange="renderFillCandidates('${rowId}')"> Allow someone who already has a shift this weekend</label>
+    <div id="fill-candidates"></div>
+    <button class="ghost" onclick="closeModal()" style="margin-top:8px;">Cancel</button>
+  </div></div>`;
+  renderFillCandidates(rowId);
+}
+function renderFillCandidates(rowId) {
+  const allowDup = document.getElementById('fill-allow-dup').checked;
+  const usedNames = new Set(state.results.rows.map(r => r.workingName).filter(n => n && n !== '(not enough people)'));
+  const pool = state.managers.filter(m => allowDup || !usedNames.has(m.name));
+  const container = document.getElementById('fill-candidates');
+  container.innerHTML = pool.length
+    ? pool.map(m => `<button class="secondary cand" onclick="doFillEmpty('${rowId}','${m.id}')">${escapeHtml(m.name)}${m.benched ? ' <span style="color:var(--ink-soft); font-size:12px;">(benched)</span>' : ''}${usedNames.has(m.name) ? ' <span style="color:var(--warm); font-size:12px;">(already has a shift)</span>' : ''}</button>`).join('')
+    : `<p class="hint">No one available. Try allowing someone who already has a shift.</p>`;
+}
+function doFillEmpty(rowId, managerId) {
+  const row = state.results.rows.find(r => r.id === rowId);
+  const m = state.managers.find(x => x.id === managerId);
+  row.workingName = m.name;
+  row.assignedName = m.name;
+  state.results.drawOrder.push(m.name);
+  saveState(); renderResults(); closeModal();
+  toast(`${m.name} filled in for that pick`);
+}
+
 function openSwap(rowId) {
   if (!requireLead()) return;
   const row = state.results.rows.find(r => r.id === rowId);
@@ -1728,13 +1790,33 @@ async function finalizeWeek() {
   }
   state.history.unshift({ id: historyId, date: new Date().toISOString(), label, order, weights: weightsUsed, setup, rows });
 
+  // Auto-award points for anyone who worked a special event, tagged as SYSTEM rather than a lead.
+  const eventPreset = pointPresets.find(p => p.label === 'Worked a special event');
+  const eventPoints = eventPreset ? eventPreset.delta : 8;
+  const eventWorkers = [...new Set(state.results.rows.filter(r => r.tier === 2).map(r => r.workingName))];
+  for (const name of eventWorkers) {
+    const person = state.managers.find(mgr => mgr.name === name);
+    if (!person) continue;
+    const before = person.points || 0;
+    const after = before + eventPoints;
+    person.points = after;
+    state.pointsLog.unshift({ id: uid(), date: new Date().toISOString(), name: person.name, delta: eventPoints, reason: 'Worked a special event', leadName: 'SYSTEM', balanceBefore: before, balanceAfter: after });
+    if (sb) {
+      const { error } = await sb.rpc('rpc_insert_points_log', {
+        p_token: session.token, p_manager_name: person.name, p_delta: eventPoints, p_reason: 'Worked a special event',
+        p_lead_name: 'SYSTEM', p_balance_before: before, p_balance_after: after
+      });
+      if (error) toast('Could not save event points to server: ' + error.message);
+    }
+  }
+
   state.week.tier1b = [];
   state.week.events.forEach(ev => { ev.active = false; ev.volunteers = []; });
   state.week.label = '';
   state.week.weekendDate = null;
   state.results = null;
   saveState();
-  renderRoster(); renderAllShiftLists();
+  renderRoster(); renderAllShiftLists(); renderPoints();
   document.getElementById('results-card').style.display = 'none';
   renderHistory();
   toast('Week saved. Weighting updated.');
@@ -1750,12 +1832,27 @@ function openManualWeek() {
     <input type="text" id="manual-week-label" placeholder="Week of Oct 3&ndash;5, 2026" style="width:100%;margin-bottom:10px;">
     <textarea id="manual-week-order" rows="8" placeholder="One name per line, in draft order" style="width:100%;margin-bottom:6px;" oninput="previewManualWeekMatches()"></textarea>
     <p class="hint" id="manual-week-match-preview" style="margin-bottom:10px;"></p>
-    <input type="text" id="manual-week-note" placeholder="Note (optional) &mdash; why this was entered manually" style="width:100%;margin-bottom:14px;">
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Special event workers (optional)</label>
+    <p class="hint" style="margin-bottom:6px;">One per line. Gets them "Worked a special event" points automatically. Doesn't affect draft-order weighting, same as usual.</p>
+    <textarea id="manual-week-events" rows="4" placeholder="One name per line" style="width:100%;margin-bottom:10px;" oninput="previewManualWeekEventMatches()"></textarea>
+    <p class="hint" id="manual-week-event-preview" style="margin-bottom:10px;"></p>
+    <input type="text" id="manual-week-note" placeholder="Note (optional) - why this was entered manually" style="width:100%;margin-bottom:14px;">
     <div class="row">
       <button class="accent" onclick="submitManualWeek()">Save to history</button>
       <button class="ghost" onclick="closeModal()">Cancel</button>
     </div>
   </div></div>`;
+}
+function previewManualWeekEventMatches() {
+  const ta = document.getElementById('manual-week-events');
+  const preview = document.getElementById('manual-week-event-preview');
+  if (!ta || !preview) return;
+  const names = ta.value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!names.length) { preview.innerHTML = ''; return; }
+  const unmatched = names.filter(n => !state.managers.some(m => m.name.toLowerCase() === n.toLowerCase()));
+  preview.innerHTML = unmatched.length
+    ? `<span style="color:var(--danger);">${unmatched.length} name${unmatched.length === 1 ? '' : 's'} don't match the roster: ${escapeHtml(unmatched.join(', '))}</span>`
+    : `<span style="color:#7CE18B;">All ${names.length} names matched the roster.</span>`;
 }
 function previewManualWeekMatches() {
   const ta = document.getElementById('manual-week-order');
@@ -1771,6 +1868,7 @@ function previewManualWeekMatches() {
 async function submitManualWeek() {
   const label = document.getElementById('manual-week-label').value.trim() || 'Untitled week (manual)';
   const rawNames = document.getElementById('manual-week-order').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const rawEventNames = document.getElementById('manual-week-events').value.split('\n').map(s => s.trim()).filter(Boolean);
   const note = document.getElementById('manual-week-note').value.trim();
   if (!rawNames.length) { toast('Enter at least one name, in draft order'); return; }
 
@@ -1784,6 +1882,16 @@ async function submitManualWeek() {
     toast(`Not saved: these don't match the roster: ${unmatched.join(', ')}`);
     return;
   }
+  const eventWorkers = [];
+  const eventUnmatched = [];
+  rawEventNames.forEach(n => {
+    const m = state.managers.find(x => x.name.toLowerCase() === n.toLowerCase());
+    if (m) eventWorkers.push(m.name); else eventUnmatched.push(n);
+  });
+  if (eventUnmatched.length) {
+    toast(`Not saved: special event names don't match the roster: ${eventUnmatched.join(', ')}`);
+    return;
+  }
 
   const T = order.length;
   const mid = (T + 1) / 2;
@@ -1793,7 +1901,8 @@ async function submitManualWeek() {
   });
   const weightsUsed = state.managers.map(m => ({ name: m.name, weight: computeWeight(m) }));
   const setup = { manual: true, note: note || null };
-  const rows = order.map((name, i) => ({ shiftLabel: `Manual entry, pick ${i + 1}`, tier: 0, workingName: name, assignedName: name, pickedOption: null, swapped: false }));
+  const rows = order.map((name, i) => ({ shiftLabel: `Manual entry, pick ${i + 1}`, tier: 0, workingName: name, assignedName: name, pickedOption: null, swapped: false }))
+    .concat(eventWorkers.map(name => ({ shiftLabel: 'Special event (manual)', tier: 2, workingName: name, assignedName: name, pickedOption: null, swapped: false })));
 
   let historyId = uid();
   if (sb) {
@@ -1804,9 +1913,28 @@ async function submitManualWeek() {
     historyId = data.id;
   }
   state.history.unshift({ id: historyId, date: new Date().toISOString(), label, order, weights: weightsUsed, setup, rows });
+
+  const eventPreset = pointPresets.find(p => p.label === 'Worked a special event');
+  const eventPoints = eventPreset ? eventPreset.delta : 8;
+  for (const name of [...new Set(eventWorkers)]) {
+    const person = state.managers.find(mgr => mgr.name === name);
+    if (!person) continue;
+    const before = person.points || 0;
+    const after = before + eventPoints;
+    person.points = after;
+    state.pointsLog.unshift({ id: uid(), date: new Date().toISOString(), name: person.name, delta: eventPoints, reason: 'Worked a special event', leadName: 'SYSTEM', balanceBefore: before, balanceAfter: after });
+    if (sb) {
+      const { error } = await sb.rpc('rpc_insert_points_log', {
+        p_token: session.token, p_manager_name: person.name, p_delta: eventPoints, p_reason: 'Worked a special event',
+        p_lead_name: 'SYSTEM', p_balance_before: before, p_balance_after: after
+      });
+      if (error) toast('Could not save event points to server: ' + error.message);
+    }
+  }
+
   saveState();
-  renderRoster(); renderHistory(); closeModal();
-  toast(`Saved "${label}" and updated weighting for ${order.length} people`);
+  renderRoster(); renderHistory(); renderPoints(); closeModal();
+  toast(`Saved "${label}", updated weighting for ${order.length}, and event points for ${eventWorkers.length}`);
 }
 
 const expandedWeeks = new Set();
@@ -1938,16 +2066,19 @@ async function deleteHistory(id) {
 
 // ---------- Brownie Points ----------
 const pointPresets = [
-  { label: 'Picked up an extra shift', delta: 10 },
-  { label: 'Covered a swap for someone', delta: 10 },
-  { label: 'Helped resolve a scheduling conflict', delta: 10 },
-  { label: 'Shoutout from another department', delta: 15 },
-  { label: 'Worked a special event', delta: 15 },
-  { label: 'Great night report', delta: 5 },
+  { label: 'Picked up an extra shift', delta: 5 },
+  { label: 'Covered a swap for someone', delta: 5 },
+  { label: 'Helped resolve a scheduling conflict', delta: 5 },
+  { label: 'Shoutout from another department', delta: 8 },
+  { label: 'Worked a special event', delta: 8 },
+  { label: 'Great night report', delta: 3 },
+  { label: 'Went above and beyond', delta: 8 },
+  { label: 'Solved a critical event AV issue in time', delta: 8 },
+  { label: 'Handled a disruptive patron well', delta: 8 },
+  { label: 'Exceptional professionalism', delta: 8 },
   { label: 'Unexcused absence', delta: -100 },
-  { label: 'Late arrival', delta: -10 },
-  { label: "Didn't save the night report", delta: -10 },
-  { label: 'No-showed a swap they agreed to cover', delta: -30 }
+  { label: 'Late arrival', delta: -5 },
+  { label: "Didn't save the night report", delta: -5 }
 ];
 
 const LEAD_NAME_KEY = 'bm-last-lead-name';
@@ -1988,7 +2119,7 @@ function renderPointsLog() {
     const balanceText = (e.balanceBefore !== undefined && e.balanceBefore !== null && e.balanceAfter !== undefined && e.balanceAfter !== null)
       ? ` (${e.balanceBefore} &rarr; ${e.balanceAfter})` : '';
     const leadText = e.leadName ? ` &middot; by ${escapeHtml(e.leadName)}` : '';
-    div.innerHTML = `<span class="who">${escapeHtml(e.name)}</span> <span class="${cls}">${sign}${e.delta} pts</span>${balanceText} &mdash; ${escapeHtml(e.reason)}${leadText}<span class="when">${new Date(e.date).toLocaleString()}</span>`;
+    div.innerHTML = `<span class="who">${escapeHtml(e.name)}</span> <span class="${cls}">${sign}${e.delta} pts</span>${balanceText} - ${escapeHtml(e.reason)}${leadText}<span class="when">${new Date(e.date).toLocaleString()}</span>`;
     list.appendChild(div);
   });
   if (pager) {
@@ -2015,13 +2146,13 @@ function openAdjustPoints(managerId) {
   const lastLead = localStorage.getItem(LEAD_NAME_KEY) || '';
   const modal = document.getElementById('modal-root');
   modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
-    <h3>Adjust points &mdash; ${escapeHtml(m.name)}</h3>
+    <h3>Adjust points - ${escapeHtml(m.name)}</h3>
     <p class="hint">Current balance: ${m.points || 0} pts</p>
     <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Your name (required)</label>
     <input type="text" id="adjust-lead-name" value="${escapeHtml(lastLead)}" placeholder="Who's making this change" style="width:100%;margin-bottom:12px;">
     <select id="adjust-preset" style="width:100%;margin-bottom:10px;">
       <option value="">Custom amount&hellip;</option>
-      ${pointPresets.map((p, i) => `<option value="${i}">${p.delta > 0 ? '+' : ''}${p.delta} &mdash; ${escapeHtml(p.label)}</option>`).join('')}
+      ${pointPresets.map((p, i) => `<option value="${i}">${p.delta > 0 ? '+' : ''}${p.delta} - ${escapeHtml(p.label)}</option>`).join('')}
     </select>
     <div class="row" style="margin-bottom:10px;">
       <input type="number" id="adjust-amount" placeholder="Amount (+/-)" style="width:120px;">
