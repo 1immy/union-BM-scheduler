@@ -2200,8 +2200,8 @@ function renderHistory() {
         <span>${escapeHtml(week.label)} <span style="color:var(--ink-soft); font-weight:500;">(${d.toLocaleDateString()})</span>${week.setup && week.setup.manual ? ' <span class="badge tier2">Manual</span>' : ''}</span>
         <div class="row">
           <button class="ghost" onclick="toggleWeekDetail('${week.id}')">${isOpen ? 'Hide info' : 'More info'}</button>
-          <button class="ghost" onclick="openEditHistory('${week.id}')">Edit</button>
-          <button class="danger-ghost" onclick="deleteHistory('${week.id}')">Delete</button>
+          <button class="ghost lead-only" onclick="openEditHistory('${week.id}')">Edit</button>
+          <button class="danger-ghost lead-only" onclick="deleteHistory('${week.id}')">Delete</button>
         </div>
       </div>
       <div class="order-list">${week.order.map((n, i) => `<span>${i + 1}. ${escapeHtml(n)}</span>`).join('')}</div>
