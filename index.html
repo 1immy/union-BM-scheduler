@@ -520,6 +520,7 @@ tr:last-child td { border-bottom: none; }
           <h2 style="margin-bottom:2px;">Brownie Points</h2>
           <p class="hint" style="margin-bottom:0;">Earned for good work, lost for the opposite.</p>
         </div>
+        <button class="secondary" onclick="openBulkAdjustPoints()">Adjust multiple</button>
       </div>
       <table id="points-table" style="margin-top:14px;">
         <thead><tr><th>Name</th><th>Balance</th><th></th></tr></thead>
@@ -2421,6 +2422,70 @@ async function submitAdjustPoints(managerId) {
     });
     if (error) toast('Could not save to server: ' + error.message);
   }
+}
+function openBulkAdjustPoints() {
+  if (!requireLead()) return;
+  const lastLead = localStorage.getItem(LEAD_NAME_KEY) || '';
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()" style="max-width:480px;">
+    <h3>Adjust points for multiple people</h3>
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Your name (required)</label>
+    <input type="text" id="bulk-lead-name" value="${escapeHtml(lastLead)}" placeholder="Who's making this change" style="width:100%;margin-bottom:12px;">
+    <select id="bulk-preset" style="width:100%;margin-bottom:10px;">
+      <option value="">Custom amount&hellip;</option>
+      ${pointPresets.map((p, i) => `<option value="${i}">${p.delta > 0 ? '+' : ''}${p.delta} - ${escapeHtml(p.label)}</option>`).join('')}
+    </select>
+    <div class="row" style="margin-bottom:14px;">
+      <input type="number" id="bulk-amount" placeholder="Amount (+/-)" style="width:120px;">
+      <input type="text" id="bulk-reason" placeholder="Reason" style="flex:1;min-width:160px;">
+    </div>
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;">Select people</label>
+    <div id="bulk-people-list" style="max-height:260px;overflow-y:auto;margin-bottom:14px;border:1px solid var(--line);border-radius:6px;padding:8px 12px;">
+      ${state.managers.map(m => `<label class="checkbox-row" style="display:block;padding:4px 0;">
+        <input type="checkbox" class="bulk-person-check" value="${m.id}"> ${escapeHtml(m.name)} <span style="color:var(--ink-soft);font-size:12px;">(${m.points || 0} pts)</span>
+      </label>`).join('')}
+    </div>
+    <div class="row">
+      <button class="accent" onclick="submitBulkAdjustPoints()">Apply to selected</button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+  document.getElementById('bulk-preset').addEventListener('change', e => {
+    if (e.target.value === '') return;
+    const p = pointPresets[Number(e.target.value)];
+    document.getElementById('bulk-amount').value = p.delta;
+    document.getElementById('bulk-reason').value = p.label;
+  });
+}
+async function submitBulkAdjustPoints() {
+  const leadName = document.getElementById('bulk-lead-name').value.trim();
+  const amount = Number(document.getElementById('bulk-amount').value);
+  const reason = document.getElementById('bulk-reason').value.trim();
+  const checkedIds = Array.from(document.querySelectorAll('.bulk-person-check:checked')).map(el => el.value);
+  if (!leadName) { toast('Enter your name first, for the record'); return; }
+  if (!amount || !reason) { toast('Enter an amount and a reason'); return; }
+  if (!checkedIds.length) { toast('Select at least one person'); return; }
+  localStorage.setItem(LEAD_NAME_KEY, leadName);
+
+  for (const id of checkedIds) {
+    const m = state.managers.find(x => x.id === id);
+    if (!m) continue;
+    const before = m.points || 0;
+    const after = before + amount;
+    m.points = after;
+    state.pointsLog.unshift({ id: uid(), date: new Date().toISOString(), name: m.name, delta: amount, reason, leadName, balanceBefore: before, balanceAfter: after });
+    if (sb) {
+      const { error } = await sb.rpc('rpc_insert_points_log', {
+        p_token: session.token, p_manager_name: m.name, p_delta: amount, p_reason: reason,
+        p_lead_name: leadName, p_balance_before: before, p_balance_after: after
+      });
+      if (error) toast(`Could not save for ${m.name}: ` + error.message);
+    }
+  }
+  saveState();
+  pointsLogPage = 1;
+  renderPoints(); closeModal();
+  toast(`${amount > 0 ? '+' : ''}${amount} pts applied to ${checkedIds.length} people`);
 }
 
 // ---------- Brownie Shop ----------
