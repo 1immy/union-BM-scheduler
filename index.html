@@ -495,8 +495,10 @@ tr:last-child td { border-bottom: none; }
     <section class="card">
       <div class="row" style="justify-content:space-between;">
         <h2 style="margin:0;">Past weeks</h2>
-        <button class="secondary" id="history-export-btn" onclick="exportHistory()">Export history</button>
-        <button class="secondary" onclick="openManualWeek()">Insert a week manually</button>
+        <div class="row">
+          <button class="secondary" id="history-export-btn" onclick="exportHistory()">Export history</button>
+          <button class="secondary" onclick="openManualWeek()">Insert a week manually</button>
+        </div>
       </div>
       <p class="hint">Each finalized week updates the weighting above. Click "More info" on any week for the full detail.</p>
       <div id="history-list"></div>
