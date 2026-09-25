@@ -137,12 +137,12 @@ section.card h2 {
 section.card p.hint { color: var(--ink-soft); font-size: 14.5px; margin: 0 0 16px; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
-input[type=text], input[type=number], input[type=password], input[type=date], select {
+input[type=text], input[type=number], input[type=password], input[type=date], textarea, select {
   font-family: 'Inter', sans-serif; font-size: 15.5px; padding: 10px 12px;
   border: 1px solid var(--line); border-radius: 5px;
   background: var(--surface-2); color: var(--ink);
 }
-input[type=text]:focus, input[type=number]:focus, input[type=password]:focus, input[type=date]:focus, select:focus, button:focus-visible {
+input[type=text]:focus, input[type=number]:focus, input[type=password]:focus, input[type=date]:focus, textarea:focus, select:focus, button:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 1px;
 }
 button {
@@ -496,6 +496,7 @@ tr:last-child td { border-bottom: none; }
       <div class="row" style="justify-content:space-between;">
         <h2 style="margin:0;">Past weeks</h2>
         <button class="secondary" id="history-export-btn" onclick="exportHistory()">Export history</button>
+        <button class="secondary" onclick="openManualWeek()">Insert a week manually</button>
       </div>
       <p class="hint">Each finalized week updates the weighting above. Click "More info" on any week for the full detail.</p>
       <div id="history-list"></div>
@@ -755,7 +756,6 @@ const defaultSac = [
 const defaultShopItems = [
   { id: 'boost', name: 'Front of the Line', desc: 'Adds a one-time credit boost applied immediately, raising your odds on the very next draft.', cost: 80, icon: 'star', effect: 'creditBoost' },
   { id: 'weekoff', name: 'Guaranteed Weekend Off', desc: 'Sit out the next draft entirely. You keep your credit for the week after.', cost: 150, icon: 'calendar', effect: 'skipNext' },
-  { id: 'swapins', name: 'Swap Insurance', desc: "Guarantees a swap next time you're drafted, even outside the first 10 shifts.", cost: 60, icon: 'shield', effect: 'swapInsurance' },
   { id: 'brownie', name: 'An Actual Brownie', desc: 'Redeem for a real brownie from the leads. The original brownie point.', cost: 20, icon: 'brownie', effect: 'honor' }
 ];
 
@@ -1277,6 +1277,28 @@ function runDraw() {
   clearTimeout(revealGraceTimer);
   clearInterval(revealCountdownTimer);
   closeModal();
+
+  const eligible = state.managers.filter(m => !m.skipNext && !m.benched);
+  const eventSlots = state.week.events.filter(ev => ev.active).reduce((s, ev) => s + (ev.count || 0), 0);
+  const totalSlots = state.week.tier1.length + state.week.tier1b.length + eventSlots + state.week.redgym.length + state.week.sac.length;
+
+  if (totalSlots > eligible.length) {
+    const short = totalSlots - eligible.length;
+    const modal = document.getElementById('modal-root');
+    modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+      <h3>Not enough people for this week</h3>
+      <p class="hint">There are ${totalSlots} shifts to fill but only ${eligible.length} building managers available once benched people and skips are excluded. ${short} shift${short === 1 ? '' : 's'} would come up short.</p>
+      <div class="row">
+        <button class="accent" onclick="closeModal(); performDraw();">Continue anyway</button>
+        <button class="ghost" onclick="closeModal()">Cancel</button>
+      </div>
+    </div></div>`;
+    return;
+  }
+  performDraw();
+}
+
+function performDraw() {
   const noDouble = state.week.noDoubleBook;
   let pool = state.managers.filter(m => !m.skipNext && !m.benched);
   const skipped = state.managers.filter(m => m.skipNext);
@@ -1300,7 +1322,7 @@ function runDraw() {
       id: uid(), tier: 1, shiftLabel: `Weekend pick ${idx + 1}`,
       assignedName: picked ? picked.name : '(not enough people)',
       workingName: picked ? picked.name : '(not enough people)',
-      swapped: false, swapEligible: idx < 10, candidatePool: snapshot, pickedOption: null,
+      swapped: false, swapEligible: true, candidatePool: snapshot, pickedOption: null,
       day: shift.day || 'Other', building: buildingFor(1, shift.label)
     });
   });
@@ -1320,7 +1342,7 @@ function runDraw() {
     filled.forEach(f => {
       results.push({
         id: uid(), tier: 2, eventName, shiftLabel: eventName + (f.viaVolunteer ? ' (volunteer)' : ''),
-        assignedName: f.name, workingName: f.name, swapped: false, swapEligible: false,
+        assignedName: f.name, workingName: f.name, swapped: false, swapEligible: true,
         candidatePool: f.viaVolunteer ? null : f.candidatePool
       });
     });
@@ -1333,7 +1355,7 @@ function runDraw() {
       id: uid(), tier: 3, shiftLabel: `Red Gym pick ${idx + 1}`,
       assignedName: picked ? picked.name : '(not enough people)',
       workingName: picked ? picked.name : '(not enough people)',
-      swapped: false, swapEligible: false, candidatePool: snapshot, pickedOption: null,
+      swapped: false, swapEligible: true, candidatePool: snapshot, pickedOption: null,
       day: shift.day || 'Other', building: 'Red Gym'
     });
   });
@@ -1345,7 +1367,7 @@ function runDraw() {
       id: uid(), tier: 4, shiftLabel: `SAC pick ${idx + 1}`,
       assignedName: picked ? picked.name : '(not enough people)',
       workingName: picked ? picked.name : '(not enough people)',
-      swapped: false, swapEligible: false, candidatePool: snapshot, pickedOption: null,
+      swapped: false, swapEligible: true, candidatePool: snapshot, pickedOption: null,
       day: shift.day || 'Other', building: 'SAC'
     });
   });
@@ -1711,6 +1733,74 @@ async function finalizeWeek() {
   document.querySelector('.tab-btn[data-tab="history"]').click();
 }
 
+function openManualWeek() {
+  if (!requireLead()) return;
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Insert a week manually</h3>
+    <p class="hint">For when a draft happened outside the app (a bug, a paper backup, whatever) and you still need the weighting and record to reflect it. List names in the order they were actually picked, one per line.</p>
+    <input type="text" id="manual-week-label" placeholder="Week of Oct 3&ndash;5, 2026" style="width:100%;margin-bottom:10px;">
+    <textarea id="manual-week-order" rows="8" placeholder="One name per line, in draft order" style="width:100%;margin-bottom:6px;" oninput="previewManualWeekMatches()"></textarea>
+    <p class="hint" id="manual-week-match-preview" style="margin-bottom:10px;"></p>
+    <input type="text" id="manual-week-note" placeholder="Note (optional) &mdash; why this was entered manually" style="width:100%;margin-bottom:14px;">
+    <div class="row">
+      <button class="accent" onclick="submitManualWeek()">Save to history</button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+}
+function previewManualWeekMatches() {
+  const ta = document.getElementById('manual-week-order');
+  const preview = document.getElementById('manual-week-match-preview');
+  if (!ta || !preview) return;
+  const names = ta.value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!names.length) { preview.innerHTML = ''; return; }
+  const unmatched = names.filter(n => !state.managers.some(m => m.name.toLowerCase() === n.toLowerCase()));
+  preview.innerHTML = unmatched.length
+    ? `<span style="color:var(--danger);">${unmatched.length} name${unmatched.length === 1 ? '' : 's'} don't match the roster: ${escapeHtml(unmatched.join(', '))}</span>`
+    : `<span style="color:#7CE18B;">All ${names.length} names matched the roster.</span>`;
+}
+async function submitManualWeek() {
+  const label = document.getElementById('manual-week-label').value.trim() || 'Untitled week (manual)';
+  const rawNames = document.getElementById('manual-week-order').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const note = document.getElementById('manual-week-note').value.trim();
+  if (!rawNames.length) { toast('Enter at least one name, in draft order'); return; }
+
+  const order = [];
+  const unmatched = [];
+  rawNames.forEach(n => {
+    const m = state.managers.find(x => x.name.toLowerCase() === n.toLowerCase());
+    if (m) order.push(m.name); else unmatched.push(n);
+  });
+  if (unmatched.length) {
+    toast(`Not saved: these don't match the roster: ${unmatched.join(', ')}`);
+    return;
+  }
+
+  const T = order.length;
+  const mid = (T + 1) / 2;
+  order.forEach((name, i) => {
+    const person = state.managers.find(mgr => mgr.name === name);
+    if (person) person.credit = Math.round(((person.credit || 0) + ((i + 1) - mid)) * 10) / 10;
+  });
+  const weightsUsed = state.managers.map(m => ({ name: m.name, weight: computeWeight(m) }));
+  const setup = { manual: true, note: note || null };
+  const rows = order.map((name, i) => ({ shiftLabel: `Manual entry, pick ${i + 1}`, tier: 0, workingName: name, assignedName: name, pickedOption: null, swapped: false }));
+
+  let historyId = uid();
+  if (sb) {
+    const { data, error } = await sb.rpc('rpc_insert_history', {
+      p_token: session.token, p_label: label, p_draw_order: order, p_weights: weightsUsed, p_setup: setup, p_rows: rows
+    });
+    if (error) { toast('Could not save to server: ' + error.message); return; }
+    historyId = data.id;
+  }
+  state.history.unshift({ id: historyId, date: new Date().toISOString(), label, order, weights: weightsUsed, setup, rows });
+  saveState();
+  renderRoster(); renderHistory(); closeModal();
+  toast(`Saved "${label}" and updated weighting for ${order.length} people`);
+}
+
 const expandedWeeks = new Set();
 function toggleWeekDetail(id) {
   if (expandedWeeks.has(id)) expandedWeeks.delete(id); else expandedWeeks.add(id);
@@ -1729,14 +1819,15 @@ function buildWeekDetailHtml(week) {
       return line;
     }).join('<br>');
   }
-  return `<div class="week-detail">
-    <div class="detail-block"><div class="detail-title">Weights used</div><div class="detail-text">${weightsText}</div></div>
-    <div class="detail-block"><div class="detail-title">Setup</div><div class="detail-text">
-      Weekend options: ${(setup.weekendOptions || []).map(escapeHtml).join(', ') || 'none'}<br>
+  const setupText = setup.manual
+    ? `Entered manually.${setup.note ? ' Note: ' + escapeHtml(setup.note) : ''}`
+    : `Weekend options: ${(setup.weekendOptions || []).map(escapeHtml).join(', ') || 'none'}<br>
       Red Gym options: ${(setup.redgymOptions || []).map(escapeHtml).join(', ') || 'none'}<br>
       SAC options: ${(setup.sacOptions || []).map(escapeHtml).join(', ') || 'none'}<br>
-      Events: ${events.length ? events.map(e => `${escapeHtml(e.name)} (${e.count} slots)`).join(', ') : 'none held'}
-    </div></div>
+      Events: ${events.length ? events.map(e => `${escapeHtml(e.name)} (${e.count} slots)`).join(', ') : 'none held'}`;
+  return `<div class="week-detail">
+    <div class="detail-block"><div class="detail-title">Weights used</div><div class="detail-text">${weightsText}</div></div>
+    <div class="detail-block"><div class="detail-title">Setup</div><div class="detail-text">${setupText}</div></div>
     <div class="detail-block"><div class="detail-title">Picks</div><div class="detail-text">${picksText}</div></div>
   </div>`;
 }
@@ -1815,7 +1906,7 @@ function renderHistory() {
     const isOpen = expandedWeeks.has(week.id);
     div.innerHTML = `
       <div class="date-line">
-        <span>${escapeHtml(week.label)} <span style="color:var(--ink-soft); font-weight:500;">(${d.toLocaleDateString()})</span></span>
+        <span>${escapeHtml(week.label)} <span style="color:var(--ink-soft); font-weight:500;">(${d.toLocaleDateString()})</span>${week.setup && week.setup.manual ? ' <span class="badge tier2">Manual</span>' : ''}</span>
         <div class="row">
           <button class="ghost" onclick="toggleWeekDetail('${week.id}')">${isOpen ? 'Hide info' : 'More info'}</button>
           <button class="danger-ghost" onclick="deleteHistory('${week.id}')">Delete</button>
@@ -1840,12 +1931,15 @@ async function deleteHistory(id) {
 // ---------- Brownie Points ----------
 const pointPresets = [
   { label: 'Picked up an extra shift', delta: 10 },
+  { label: 'Covered a swap for someone', delta: 10 },
+  { label: 'Helped resolve a scheduling conflict', delta: 10 },
   { label: 'Shoutout from another department', delta: 15 },
   { label: 'Worked a special event', delta: 15 },
   { label: 'Great night report', delta: 5 },
   { label: 'Unexcused absence', delta: -100 },
   { label: 'Late arrival', delta: -10 },
-  { label: "Didn't save the night report", delta: -10 }
+  { label: "Didn't save the night report", delta: -10 },
+  { label: 'No-showed a swap they agreed to cover', delta: -30 }
 ];
 
 const LEAD_NAME_KEY = 'bm-last-lead-name';
@@ -2175,6 +2269,17 @@ function setupRealtime() {
     channel.on('postgres_changes', { event: '*', schema: 'public', table: t }, () => { loadFromSupabase(); });
   });
   channel.subscribe();
+
+  // Belt-and-suspenders: realtime can drop a connection on flaky wifi, so also
+  // poll periodically. Skipped while a modal's open or a field's actively focused,
+  // so it doesn't yank a form out from under someone mid-edit.
+  setInterval(() => {
+    const activeTag = (document.activeElement && document.activeElement.tagName) || '';
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+    const modalRoot = document.getElementById('modal-root');
+    if (modalRoot && modalRoot.innerHTML.trim()) return;
+    loadFromSupabase();
+  }, 30000);
 }
 
 async function init() {
