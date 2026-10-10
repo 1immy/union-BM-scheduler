@@ -384,10 +384,10 @@ tr:last-child td { border-bottom: none; }
   <div class="panel" id="panel-shifts">
     <section class="card">
       <h2>Week of</h2>
-      <p class="hint">Pick the Friday of the weekend you're drafting for, or just use the upcoming one.</p>
+      <p class="hint">Filled in automatically with the next weekend. Change the Friday if you're drafting for a different one.</p>
       <div class="row" style="margin-bottom:10px;">
         <input type="date" id="week-date">
-        <button class="secondary" onclick="useUpcomingWeekend()">Use next weekend</button>
+        <button class="secondary" onclick="useUpcomingWeekend()">Reset to next weekend</button>
       </div>
       <input type="text" id="week-label" placeholder="e.g. Week of Oct 3–5, 2026" style="width:280px;">
     </section>
@@ -818,10 +818,41 @@ function dayDateLabel(day) {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${day}, ${monthNames[base.getMonth()]} ${base.getDate()}`;
 }
+function isoLocal(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+// Keeps the week date/label filled in and current so a finished draft is never saved as "Untitled week".
+// Fills when empty, or when the stored weekend has already passed. Returns true if anything changed.
+function ensureWeekDefaults() {
+  let changed = false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  let fri = null;
+  if (state.week.weekendDate) {
+    const [y, mo, d] = state.week.weekendDate.split('-').map(Number);
+    fri = new Date(y, mo - 1, d);
+    const sun = new Date(fri); sun.setDate(fri.getDate() + 2);
+    if (isNaN(fri) || sun < today) fri = null;
+  }
+  if (!fri) {
+    fri = nextWeekendFriday(new Date());
+    state.week.weekendDate = isoLocal(fri);
+    state.week.label = formatWeekLabel(fri);
+    changed = true;
+  } else if (!state.week.label || !state.week.label.trim()) {
+    state.week.label = formatWeekLabel(fri);
+    changed = true;
+  }
+  if (changed) {
+    const di = document.getElementById('week-date'), li = document.getElementById('week-label');
+    if (di) di.value = state.week.weekendDate;
+    if (li) li.value = state.week.label;
+  }
+  return changed;
+}
 function useUpcomingWeekend() {
   if (!requireLead()) return;
   const fri = nextWeekendFriday(new Date());
-  state.week.weekendDate = fri.toISOString().slice(0, 10);
+  state.week.weekendDate = isoLocal(fri);
   state.week.label = formatWeekLabel(fri);
   saveState(); renderAllShiftLists();
   toast('Set to next weekend');
@@ -1345,6 +1376,7 @@ function buildingFor(tier, label) {
 
 function runDraw() {
   if (!requireLead()) return;
+  if (ensureWeekDefaults()) { saveState(); renderAllShiftLists(); }
   if (state.managers.length === 0) { toast('Add building managers to the roster first'); return; }
   clearTimeout(revealGraceTimer);
   clearInterval(revealCountdownTimer);
@@ -1910,6 +1942,7 @@ function closeModal(e) { if (e && e.target !== e.currentTarget) return; document
 async function finalizeWeek() {
   if (!requireLead()) return;
   if (!state.results) return;
+  if (ensureWeekDefaults()) saveState();
   if (!confirm("Save this week's draw order to history? This updates everyone's weighting.")) return;
 
   const order = state.results.drawOrder;
@@ -1969,6 +2002,7 @@ async function finalizeWeek() {
   state.week.events.forEach(ev => { ev.active = false; ev.volunteers = []; });
   state.week.label = '';
   state.week.weekendDate = null;
+  ensureWeekDefaults();
   state.results = null;
   saveState();
   renderRoster(); renderAllShiftLists(); renderPoints();
@@ -2785,6 +2819,7 @@ async function init() {
   if (sb) {
     try { await restoreSession(); } catch (e) { console.warn('session restore failed', e); }
     await loadFromSupabase();
+    if (ensureWeekDefaults() && session && session.token) { saveState(); renderAllShiftLists(); }
     setupRealtime();
   } else {
     toast('Supabase client failed to load; running from local storage only');
