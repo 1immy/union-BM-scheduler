@@ -1176,7 +1176,11 @@ function renderShiftList(containerId, arrKey) {
         ${['Fri', 'Sat', 'Sun', 'Other'].map(d => `<option value="${d}" ${shift.day === d ? 'selected' : ''}>${d}</option>`).join('')}
       </select>
       <input type="text" value="${escapeHtml(shift.label)}" onchange="updateShiftLabel('${arrKey}','${shift.id}', this.value)" style="flex:1; min-width:100px;">
-      <span style="color:var(--ink-soft); font-size:13.5px; white-space:nowrap; min-width:90px;">${formatTimeRange(shift.start, shift.end)}</span>
+      ${(shift.start && shift.end) ? `<span style="color:var(--ink-soft); font-size:13.5px; white-space:nowrap; min-width:90px;">${formatTimeRange(shift.start, shift.end)}</span>` : `<span style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
+        <input type="time" value="${shift.start || ''}" onchange="updateShiftTime('${arrKey}','${shift.id}','start', this.value)" style="width:118px;" aria-label="Start time">
+        <span style="color:var(--ink-soft);">to</span>
+        <input type="time" value="${shift.end || ''}" onchange="updateShiftTime('${arrKey}','${shift.id}','end', this.value)" style="width:118px;" aria-label="End time">
+      </span>`}
       <button class="danger-ghost" onclick="removeShift('${arrKey}','${shift.id}')">Remove</button>`;
     container.appendChild(row);
   });
@@ -1192,6 +1196,14 @@ function updateShiftDay(arrKey, id, val) {
   const s = state.week[arrKey].find(x => x.id === id);
   if (s) s.day = val;
   saveState();
+}
+function updateShiftTime(arrKey, id, field, val) {
+  if (!requireLead()) { renderAllShiftLists(); return; }
+  const s = state.week[arrKey].find(x => x.id === id);
+  if (!s) return;
+  s[field] = val || null;
+  saveState();
+  if (s.start && s.end) renderAllShiftLists(); // once both are set, show it as a normal fixed time
 }
 function removeShift(arrKey, id) {
   if (!requireLead()) return;
