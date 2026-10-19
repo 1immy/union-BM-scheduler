@@ -55,6 +55,22 @@ h1 {
   font-size: 12px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase;
   color: var(--accent-bright); margin-top: 2px;
 }
+.brand-version { font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; letter-spacing: 0.02em; }
+.header-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.sync-pill {
+  display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600;
+  padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink-soft); font-family: inherit; cursor: default; white-space: nowrap;
+}
+.sync-pill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-soft); flex-shrink: 0; }
+.sync-pill.synced .dot { background: #4ADE80; }
+.sync-pill.saving .dot { background: var(--warm); animation: syncpulse 1s ease-in-out infinite; }
+.sync-pill.stale { cursor: pointer; border-color: #5AA9FF; color: var(--ink); }
+.sync-pill.stale .dot { background: #5AA9FF; }
+.sync-pill.error { cursor: pointer; border-color: var(--danger); color: var(--danger); }
+.sync-pill.error .dot { background: var(--danger); }
+@keyframes syncpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .sync-pill.saving .dot { animation: none; } }
 .brand-footer {
   display: flex; align-items: center; justify-content: center; gap: 10px;
   margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--line);
@@ -318,9 +334,13 @@ tr:last-child td { border-bottom: none; }
       <div>
         <h1>BM Drafts</h1>
         <div class="brand-tag">Wisconsin Union Building Managers</div>
+        <div class="brand-version" id="brand-version"></div>
       </div>
     </div>
-    <div id="auth-widget" class="auth-widget"></div>
+    <div class="header-right">
+      <button type="button" id="sync-pill" class="sync-pill synced" onclick="onSyncPillClick()" aria-live="polite"><span class="dot"></span><span id="sync-label">Synced</span></button>
+      <div id="auth-widget" class="auth-widget"></div>
+    </div>
   </header>
 
   <div id="view-only-banner" class="view-only-banner" style="display:none;">
@@ -616,9 +636,66 @@ function loadStoredToken() {
   try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
 }
 
+const APP_VERSION = '1.0.0';
+const APP_UPDATED = '2026-10-19';
+
+// ---------- sync indicator ----------
+let pendingSaves = 0;
+let syncError = false;
+let serverBaseline = null;   // fingerprint of server data this browser last loaded or wrote
+let serverIsNewer = false;
+let lastSyncedAt = null;
+function renderSyncPill() {
+  const pill = document.getElementById('sync-pill'), label = document.getElementById('sync-label');
+  if (!pill) return;
+  const lead = !!session;
+  let cls = 'synced', text = lead ? 'Synced' : 'Up to date', tip = '';
+  if (!sb) { cls = 'error'; text = 'Offline mode'; tip = 'Running from this browser only. Click to retry.'; }
+  else if (syncError) { cls = 'error'; text = 'Not saved'; tip = 'The last change did not reach the server. Click to retry.'; }
+  else if (pendingSaves > 0) { cls = 'saving'; text = 'Saving\u2026'; }
+  else if (serverIsNewer) { cls = 'stale'; text = 'New data available'; tip = 'Someone changed something. Click to refresh.'; }
+  if (!tip && lastSyncedAt) tip = 'Last synced ' + lastSyncedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  pill.className = 'sync-pill ' + cls;
+  label.textContent = text;
+  pill.title = tip;
+}
+async function fetchServerFingerprint() {
+  const [m, w, d, h, p, sh] = await Promise.all([
+    sb.from('managers').select('id,name,nickname,credit,override,points,skip_next,swap_insurance,benched').order('id'),
+    sb.from('week_config').select('updated_at').eq('id', true).single(),
+    sb.from('draft_state').select('updated_at').eq('id', true).single(),
+    sb.from('history_weeks').select('id,created_at').order('created_at', { ascending: false }).limit(1),
+    sb.from('points_log').select('id').order('created_at', { ascending: false }).limit(1),
+    sb.from('shop_items').select('id,name,cost,description,icon').order('id')
+  ]);
+  if ([m, w, d, h, p, sh].some(r => r.error)) throw new Error('fingerprint failed');
+  return JSON.stringify([m.data, w.data, d.data, h.data, p.data, sh.data]);
+}
+async function rebaselineServer() {
+  if (!sb) return;
+  try { serverBaseline = await fetchServerFingerprint(); serverIsNewer = false; lastSyncedAt = new Date(); } catch (e) {}
+  renderSyncPill();
+}
+async function checkServerFreshness() {
+  if (!sb || pendingSaves > 0) return;
+  try {
+    const fp = await fetchServerFingerprint();
+    if (serverBaseline === null) { serverBaseline = fp; }
+    else if (fp !== serverBaseline) serverIsNewer = true;
+  } catch (e) { /* a failed check says nothing about the data; leave the light alone */ }
+  renderSyncPill();
+}
+async function onSyncPillClick() {
+  if (syncError && session) { await saveState(); if (!syncError) toast('Saved'); return; }
+  if (!sb) { location.reload(); return; }
+  await loadFromSupabase();
+  toast('Refreshed');
+}
+
 async function saveState() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { console.warn('local cache save failed', e); }
   if (!sb || !session) return;
+  pendingSaves++; renderSyncPill();
   try {
     await sb.rpc('rpc_sync_week_config', {
       p_token: session.token, p_label: state.week.label, p_weekend_date: state.week.weekendDate,
@@ -648,9 +725,15 @@ async function saveState() {
         p_managers: validManagers.map(m => ({ id: m.id, credit: m.credit || 0, override: m.override, points: m.points || 0, skip_next: !!m.skipNext, swap_insurance: m.swapInsurance || 0, benched: !!m.benched }))
       });
     }
+    syncError = false;
   } catch (e) {
     console.warn('sync to server failed', e);
+    syncError = true;
     toast('Could not sync to the server. Check your connection.');
+  } finally {
+    pendingSaves = Math.max(0, pendingSaves - 1);
+    renderSyncPill();
+    if (!syncError && pendingSaves === 0) rebaselineServer();
   }
 }
 
@@ -663,6 +746,7 @@ function requireLead() {
   return true;
 }
 function updateAuthUI() {
+  renderSyncPill();
   const el = document.getElementById('auth-widget');
   const banner = document.getElementById('view-only-banner');
   document.body.classList.toggle('signed-out', !session);
@@ -1955,7 +2039,15 @@ async function finalizeWeek() {
   if (!requireLead()) return;
   if (!state.results) return;
   if (ensureWeekDefaults()) saveState();
-  if (!confirm("Save this week's draw order to history? This updates everyone's weighting.")) return;
+  // Make sure every active event's volunteers are on the schedule (so they get points) even if "Fill special events" was never clicked.
+  // Volunteers stay in the building draft; only someone already working a conflicting shift is skipped for the event.
+  const autoBumped = [];
+  state.week.events.filter(ev => ev.active).forEach(ev => {
+    const res = ensureVolunteersFilled(ev);
+    res.bumped.forEach(v => autoBumped.push(`${v} (${ev.name || 'Special Event'})`));
+  });
+  if (autoBumped.length) toast('Not added to events because of a shift conflict: ' + autoBumped.join(', '));
+  if (!confirm("Save this week's draw order to history? Event volunteers get their points automatically, and this updates everyone's weighting.")) return;
 
   const order = state.results.drawOrder;
   const weightsUsed = state.managers.map(m => ({ name: m.name, weight: computeWeight(m) }));
@@ -2793,7 +2885,10 @@ async function loadFromSupabase() {
   } catch (e) {
     console.warn('initial load from server failed', e);
     toast('Could not load live data. Showing local cache.');
+    renderSyncPill();
+    return;
   }
+  if (pendingSaves === 0 && !syncError) await rebaselineServer();
 }
 
 function setupRealtime() {
@@ -2808,15 +2903,22 @@ function setupRealtime() {
   // poll periodically. Skipped while a modal's open or a field's actively focused,
   // so it doesn't yank a form out from under someone mid-edit.
   setInterval(() => {
+    checkServerFreshness();
     const activeTag = (document.activeElement && document.activeElement.tagName) || '';
     if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
     const modalRoot = document.getElementById('modal-root');
     if (modalRoot && modalRoot.innerHTML.trim()) return;
-    loadFromSupabase();
+    if (pendingSaves === 0) loadFromSupabase();
   }, 30000);
 }
 
 async function init() {
+  const ver = document.getElementById('brand-version');
+  if (ver) {
+    const [y, mo, d] = APP_UPDATED.split('-').map(Number);
+    ver.textContent = 'v' + APP_VERSION + ' \u00B7 Updated ' + new Date(y, mo - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  renderSyncPill();
   renderRoster();
   renderAllShiftLists();
   renderHistory();
