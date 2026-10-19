@@ -60,8 +60,15 @@ h1 {
 .sync-pill {
   display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600;
   padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
-  color: var(--ink-soft); font-family: inherit; cursor: default; white-space: nowrap;
+  color: var(--ink-soft); font-family: inherit; cursor: default; white-space: nowrap; position: relative;
 }
+.sync-tip {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; white-space: normal; width: max-content; max-width: 260px;
+  background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 11px; font-size: 12.5px; font-weight: 500; line-height: 1.4; text-align: left;
+  opacity: 0; visibility: hidden; pointer-events: none;
+}
+.sync-pill:hover .sync-tip, .sync-pill:focus-visible .sync-tip, .sync-pill.tip-open .sync-tip { opacity: 1; visibility: visible; }
 .sync-pill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-soft); flex-shrink: 0; }
 .sync-pill.synced .dot { background: #4ADE80; }
 .sync-pill.saving .dot { background: var(--warm); animation: syncpulse 1s ease-in-out infinite; }
@@ -346,7 +353,7 @@ tr:last-child td { border-bottom: none; }
       </div>
     </div>
     <div class="header-right">
-      <button type="button" id="sync-pill" class="sync-pill synced" onclick="onSyncPillClick()" aria-live="polite"><span class="dot"></span><span id="sync-label">Synced</span></button>
+      <button type="button" id="sync-pill" class="sync-pill synced" onclick="onSyncPillClick()" aria-live="polite"><span class="dot"></span><span id="sync-label">Synced</span><span class="sync-tip" id="sync-tip" role="tooltip"></span></button>
       <div id="auth-widget" class="auth-widget"></div>
     </div>
   </header>
@@ -404,6 +411,19 @@ tr:last-child td { border-bottom: none; }
       <div class="empty-state" id="bench-empty" style="display:none;">
         <div class="big">Bench is empty</div>
         Drag a name here to sit them out of the draft pool.
+      </div>
+    </section>
+
+    <section class="card lead-only" id="archive-roster-card">
+      <h2>Archive</h2>
+      <p class="hint">People who left stay here, out of every draft and list, with their points and weighting kept. Restore brings them back. "Delete forever" clears their data.</p>
+      <table id="archive-table">
+        <thead><tr><th>Name</th><th>Points</th><th>Credit</th><th></th></tr></thead>
+        <tbody id="archive-body"></tbody>
+      </table>
+      <div class="empty-state" id="archive-empty" style="display:none;">
+        <div class="big">Archive is empty</div>
+        Archive a person from the roster and they'll show up here.
       </div>
     </section>
   </div>
@@ -509,6 +529,7 @@ tr:last-child td { border-bottom: none; }
         <div class="row">
           <button class="ghost" onclick="skipToFull()">Skip to full results</button>
           <button class="secondary" onclick="runDraw()">Redraw</button>
+          <button class="danger-ghost" onclick="openCancelDraft()">Cancel draft</button>
           <button class="secondary" onclick="openFillEventsModal()">Fill special events</button>
           <button class="accent" id="finalize-btn" onclick="finalizeWeek()" disabled>Finalize &amp; save to history</button>
         </div>
@@ -645,7 +666,7 @@ function loadStoredToken() {
   try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
 }
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const APP_UPDATED = '2026-10-19';
 
 // ---------- sync indicator ----------
@@ -667,13 +688,15 @@ function renderSyncPill() {
     ? 'Last synced ' + lastSyncedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
     : 'Not synced yet this session';
   tip = tip ? tip + ' ' + lastTxt + '.' : lastTxt;
-  pill.className = 'sync-pill ' + cls;
+  pill.className = 'sync-pill ' + cls + (pill.classList.contains('tip-open') ? ' tip-open' : '');
   label.textContent = text;
-  pill.title = tip;
+  const tipEl = document.getElementById('sync-tip');
+  if (tipEl) tipEl.textContent = tip;
+  pill.setAttribute('aria-label', text + '. ' + tip);
 }
 async function fetchServerFingerprint() {
   const [m, w, d, h, p, sh] = await Promise.all([
-    sb.from('managers').select('id,name,nickname,credit,override,points,skip_next,swap_insurance,benched').order('id'),
+    sb.from('managers').select('id,name,nickname,credit,override,points,skip_next,swap_insurance,benched,archived').order('id'),
     sb.from('week_config').select('updated_at').eq('id', true).single(),
     sb.from('draft_state').select('updated_at').eq('id', true).single(),
     sb.from('history_weeks').select('id,created_at').order('created_at', { ascending: false }).limit(1),
@@ -697,7 +720,10 @@ async function checkServerFreshness() {
   } catch (e) { /* a failed check says nothing about the data; leave the light alone */ }
   renderSyncPill();
 }
+let syncTipTimer = null;
 async function onSyncPillClick() {
+  const pillEl = document.getElementById('sync-pill');
+  if (pillEl) { pillEl.classList.add('tip-open'); clearTimeout(syncTipTimer); syncTipTimer = setTimeout(() => pillEl.classList.remove('tip-open'), 3500); }
   if (syncError && session) { await saveState(); if (!syncError) toast('Saved'); return; }
   if (!sb) { location.reload(); return; }
   await loadFromSupabase();
@@ -957,6 +983,7 @@ function useUpcomingWeekend() {
 function freshState() {
   return {
     managers: [],
+    archived: [],
     history: [],
     shop: defaultShopItems.map(i => ({ ...i })),
     pointsLog: [],
@@ -980,6 +1007,7 @@ delete state.settings;
 if (!state.shop) state.shop = defaultShopItems.map(i => ({ ...i }));
 state.shop = state.shop.filter(i => i.id !== 'latepass' && i.name !== 'Late Pass');
 if (!state.pointsLog) state.pointsLog = [];
+if (!Array.isArray(state.archived)) state.archived = [];
 if (state.week.weekendDate === undefined) state.week.weekendDate = null;
 if (!Array.isArray(state.week.redgym)) state.week.redgym = defaultRedgym.map(t => ({ id: uid(), label: t.label, day: t.day, start: t.start, end: t.end }));
 if (!Array.isArray(state.week.sac)) state.week.sac = defaultSac.map(t => ({ id: uid(), label: t.label, day: t.day, start: t.start, end: t.end }));
@@ -1087,7 +1115,7 @@ function rosterRowHtml(m, benched) {
     <td><span class="weight-pill">weight ${w}</span></td>
     <td style="text-align:right;">
       ${actionBtn}
-      <button class="danger-ghost" onclick="removeManager('${m.id}')">Remove</button>
+      <button class="danger-ghost lead-only" onclick="openArchiveManager('${m.id}')">Archive</button>
     </td>`;
 }
 function renderRoster() {
@@ -1116,6 +1144,7 @@ function renderRoster() {
     tr.innerHTML = rosterRowHtml(m, true);
     benchBody.appendChild(tr);
   });
+  renderArchive();
 }
 function handleDragStart(e, id) { e.dataTransfer.setData('text/plain', id); }
 function allowDrop(e) { e.preventDefault(); }
@@ -1144,6 +1173,7 @@ async function addManager() {
   const input = document.getElementById('new-name');
   const name = input.value.trim();
   if (!name) return;
+  if (state.archived.some(m => m.name.toLowerCase() === name.toLowerCase())) { toast(`${name} is in the Archive. Restore them from there instead.`); return; }
   const local = { id: uid(), name, override: null, credit: 0, points: 0, skipNext: false, swapInsurance: 0, benched: false };
   state.managers.push(local);
   input.value = '';
@@ -1156,14 +1186,90 @@ async function addManager() {
     saveState();
   }
 }
-async function removeManager(id) {
+function managerSyncRecord(m, archived) {
+  return { id: m.id, credit: m.credit || 0, override: m.override, points: m.points || 0, skip_next: !!m.skipNext, swap_insurance: m.swapInsurance || 0, benched: !!m.benched, archived };
+}
+function openArchiveManager(id) {
   if (!requireLead()) return;
-  state.managers = state.managers.filter(m => m.id !== id);
-  renderRoster();
+  const m = state.managers.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('modal-root').innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Archive ${escapeHtml(m.name)}?</h3>
+    <p class="hint">They'll be taken off the roster and out of every draft, swap list and points list. Their points (${m.points || 0}) and weighting are kept, and you can restore them any time from the Archive.</p>
+    <div class="row">
+      <button class="accent" onclick="confirmArchiveManager('${m.id}')">Archive</button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+}
+async function setArchived(id, archived) {
+  const from = archived ? state.managers : state.archived;
+  const to = archived ? state.archived : state.managers;
+  const m = from.find(x => x.id === id);
+  if (!m) return;
+  from.splice(from.indexOf(m), 1); to.push(m);
+  renderRoster(); renderPoints();
+  if (sb) {
+    const { error } = await sb.rpc('rpc_sync_managers', { p_token: session.token, p_managers: [managerSyncRecord(m, archived)] });
+    if (error) {
+      to.splice(to.indexOf(m), 1); from.push(m);
+      renderRoster(); renderPoints();
+      toast('Could not save to the server: ' + error.message);
+      return;
+    }
+  }
+  saveState();
+  toast(archived ? `${m.name} archived` : `${m.name} restored to the roster`);
+}
+function confirmArchiveManager(id) { if (!requireLead()) return; closeModal(); setArchived(id, true); }
+function restoreArchived(id) { if (!requireLead()) return; setArchived(id, false); }
+function openDeleteArchived(id) {
+  if (!requireLead()) return;
+  const m = state.archived.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('modal-root').innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Delete ${escapeHtml(m.name)} forever?</h3>
+    <p class="hint">This permanently clears their points (${m.points || 0}), weighting and roster record. Past weeks in History and old Points activity entries keep their name as written. There is no undo.</p>
+    <p class="hint" style="margin-bottom:6px;">Type <strong>DELETE</strong> to confirm.</p>
+    <input type="text" id="delete-confirm-input" autocomplete="off" style="width:100%;margin-bottom:12px;" oninput="document.getElementById('delete-confirm-btn').disabled = this.value.trim().toUpperCase() !== 'DELETE';">
+    <div class="row">
+      <button class="danger-ghost" id="delete-confirm-btn" disabled onclick="confirmDeleteArchived('${m.id}')">Delete forever</button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+  setTimeout(() => { const i = document.getElementById('delete-confirm-input'); if (i) i.focus(); }, 50);
+}
+async function confirmDeleteArchived(id) {
+  if (!requireLead()) return;
+  const input = document.getElementById('delete-confirm-input');
+  if (!input || input.value.trim().toUpperCase() !== 'DELETE') return;
+  const m = state.archived.find(x => x.id === id);
+  if (!m) return;
   if (sb) {
     const { error } = await sb.rpc('rpc_remove_manager', { p_token: session.token, p_id: id });
-    if (error) toast('Could not delete on server: ' + error.message);
+    if (error) { toast('Could not delete on server: ' + error.message); return; }
   }
+  state.archived = state.archived.filter(x => x.id !== id);
+  saveState(); renderRoster(); closeModal();
+  toast(`${m.name} deleted`);
+}
+function renderArchive() {
+  const body = document.getElementById('archive-body');
+  if (!body) return;
+  body.innerHTML = '';
+  document.getElementById('archive-empty').style.display = state.archived.length ? 'none' : 'block';
+  state.archived.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(m => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="roster-name">${escapeHtml(m.name)}${m.nickname ? ` <span style="color:var(--ink-soft); font-weight:500;">"${escapeHtml(m.nickname)}"</span>` : ''}</td>
+      <td class="num">${m.points || 0}</td>
+      <td class="num">${(m.credit || 0).toFixed(1)}</td>
+      <td style="text-align:right;">
+        <button class="ghost" onclick="restoreArchived('${m.id}')">Restore</button>
+        <button class="danger-ghost" onclick="openDeleteArchived('${m.id}')">Delete forever</button>
+      </td>`;
+    body.appendChild(tr);
+  });
 }
 function openEditManager(id) {
   if (!requireLead()) return;
@@ -1535,8 +1641,39 @@ async function runDraw() {
   </div></div>`;
 }
 
+function restoreSkipFlags() {
+  if (state.results && Array.isArray(state.results.skippedNames)) {
+    state.results.skippedNames.forEach(n => { const m = state.managers.find(x => x.name === n); if (m) m.skipNext = true; });
+    state.results.skippedNames = [];
+  }
+}
+function openCancelDraft() {
+  if (!requireLead()) return;
+  document.getElementById('modal-root').innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Cancel this draft?</h3>
+    <p class="hint">This throws away the current results. Nothing is saved to history, and no one's weighting or points change. "Guaranteed Weekend Off" skips used by this draft are given back. You can run the draft again afterward.</p>
+    <div class="row">
+      <button class="danger-ghost" onclick="confirmCancelDraft()">Cancel draft</button>
+      <button class="ghost" onclick="closeModal()">Keep draft</button>
+    </div>
+  </div></div>`;
+}
+function confirmCancelDraft() {
+  if (!requireLead()) return;
+  clearTimeout(revealGraceTimer);
+  clearInterval(revealCountdownTimer);
+  restoreSkipFlags();
+  state.results = null;
+  closeModal();
+  document.getElementById('results-card').style.display = 'none';
+  ['status-board', 'revealed-list', 'reveal-stage'].forEach(i => { const el = document.getElementById(i); if (el) el.innerHTML = ''; });
+  saveState(); renderRoster();
+  toast('Draft cancelled');
+}
+
 function runDrawChecked() {
   if (!requireLead()) return;
+  restoreSkipFlags();
   if (ensureWeekDefaults()) { saveState(); renderAllShiftLists(); }
   if (state.managers.length === 0) { toast('Add building managers to the roster first'); return; }
   clearTimeout(revealGraceTimer);
@@ -1625,6 +1762,7 @@ function performDraw() {
     sacMeta: state.week.sac.map(s => ({ label: s.label, day: s.day || 'Other', building: 'SAC' }))
   };
   // Guaranteed Weekend Off is one-time: clear it now that this draft has honored it.
+  state.results.skippedNames = skipped.map(m => m.name);
   skipped.forEach(m => { m.skipNext = false; });
   saveState();
   renderResults();
@@ -2391,7 +2529,7 @@ async function exportHistory() {
   }
 }
 
-const HISTORY_PAGE_SIZE = 8;
+const HISTORY_PAGE_SIZE = 4;
 let historyPage = 1;
 function goToHistoryPage(p) {
   const totalPages = Math.max(1, Math.ceil(state.history.length / HISTORY_PAGE_SIZE));
@@ -2916,7 +3054,13 @@ async function loadFromSupabase() {
     }
 
     if (managersRes.data) {
-      state.managers = managersRes.data.map(r => ({
+      const allRows = managersRes.data;
+      state.archived = allRows.filter(r => r.archived).map(r => ({
+        id: r.id, name: r.name, credit: Number(r.credit) || 0,
+        override: r.override === null || r.override === undefined ? null : Number(r.override),
+        points: r.points || 0, skipNext: false, swapInsurance: r.swap_insurance || 0, benched: !!r.benched, nickname: r.nickname || null
+      }));
+      state.managers = allRows.filter(r => !r.archived).map(r => ({
         id: r.id, name: r.name, credit: Number(r.credit) || 0,
         override: r.override === null || r.override === undefined ? null : Number(r.override),
         points: r.points || 0, skipNext: !!r.skip_next, swapInsurance: r.swap_insurance || 0, benched: !!r.benched, nickname: r.nickname || null
