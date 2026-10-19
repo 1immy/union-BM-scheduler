@@ -262,6 +262,14 @@ tr:last-child td { border-bottom: none; }
 .settings-row label { font-size: 14.5px; color: var(--ink-soft); font-weight: 600; }
 
 .status-board { margin-bottom: 18px; }
+#status-board:not(:empty) {
+  position: sticky; top: 0; z-index: 8; background: var(--surface);
+  padding: 10px 0 14px; border-bottom: 1px solid var(--line);
+  max-height: 46vh; overflow-y: auto;
+}
+@media (max-width: 760px) { #status-board:not(:empty) { position: static; max-height: none; } }
+.preflight-list { margin: 0 0 14px; padding: 0; list-style: none; }
+.preflight-list li { padding: 8px 10px; margin-bottom: 6px; border-radius: 6px; background: var(--warm-soft); font-size: 14.5px; line-height: 1.4; }
 .day-card-row { display: flex; flex-wrap: wrap; gap: 14px; }
 .day-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; flex: 1 1 220px; min-width: 200px; }
 .day-card-date { font-family: 'Zilla Slab', serif; font-weight: 700; font-size: 16px; margin-bottom: 10px; }
@@ -524,6 +532,7 @@ tr:last-child td { border-bottom: none; }
       </div>
       <p class="hint">Each finalized week updates the weighting above. Click "More info" on any week for the full detail.</p>
       <div id="history-list"></div>
+      <div class="row" id="history-pagination" style="justify-content:center; margin-top:12px; display:none;"></div>
       <div class="empty-state" id="history-empty" style="display:none;">
         <div class="big">No finalized weeks yet</div>
         Run a draft and finalize it to start building history.
@@ -636,7 +645,7 @@ function loadStoredToken() {
   try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
 }
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const APP_UPDATED = '2026-10-19';
 
 // ---------- sync indicator ----------
@@ -654,7 +663,10 @@ function renderSyncPill() {
   else if (syncError) { cls = 'error'; text = 'Not saved'; tip = 'The last change did not reach the server. Click to retry.'; }
   else if (pendingSaves > 0) { cls = 'saving'; text = 'Saving\u2026'; }
   else if (serverIsNewer) { cls = 'stale'; text = 'New data available'; tip = 'Someone changed something. Click to refresh.'; }
-  if (!tip && lastSyncedAt) tip = 'Last synced ' + lastSyncedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const lastTxt = lastSyncedAt
+    ? 'Last synced ' + lastSyncedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
+    : 'Not synced yet this session';
+  tip = tip ? tip + ' ' + lastTxt + '.' : lastTxt;
   pill.className = 'sync-pill ' + cls;
   label.textContent = text;
   pill.title = tip;
@@ -1199,9 +1211,33 @@ async function submitEditManager(id) {
 }
 function resetWeights() {
   if (!requireLead()) return;
-  if (!confirm("Reset everyone's weighting modifier back to neutral? This starts a fresh season without deleting your saved history log below.")) return;
+  const n = state.managers.filter(m => (m.credit || 0) !== 0).length;
+  document.getElementById('modal-root').innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Reset all weighting?</h3>
+    <p class="hint">This sets everyone's weighting modifier back to neutral (${n} ${n === 1 ? 'person currently has' : 'people currently have'} a non-zero modifier). It starts a fresh season. Saved history and points are not touched, but there is no undo.</p>
+    <p class="hint"><a href="#" onclick="downloadWeightsBackup(); return false;" style="color:var(--accent-bright);">Download current weights (CSV)</a> first if you might want them back.</p>
+    <p class="hint" style="margin-bottom:6px;">Type <strong>RESET</strong> to confirm.</p>
+    <input type="text" id="reset-confirm-input" autocomplete="off" style="width:100%;margin-bottom:12px;" oninput="document.getElementById('reset-confirm-btn').disabled = this.value.trim().toUpperCase() !== 'RESET';">
+    <div class="row">
+      <button class="danger-ghost" id="reset-confirm-btn" disabled onclick="confirmResetWeights()">Reset weighting</button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+  setTimeout(() => { const i = document.getElementById('reset-confirm-input'); if (i) i.focus(); }, 50);
+}
+function downloadWeightsBackup() {
+  const csv = 'name,credit,override,points\n' + state.managers.map(m => [JSON.stringify(m.name), m.credit || 0, m.override === null || m.override === undefined ? '' : m.override, m.points || 0].join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'bm-weights-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function confirmResetWeights() {
+  if (!requireLead()) return;
+  const input = document.getElementById('reset-confirm-input');
+  if (!input || input.value.trim().toUpperCase() !== 'RESET') return;
   state.managers.forEach(m => { m.credit = 0; });
-  saveState(); renderRoster();
+  saveState(); renderRoster(); closeModal();
   toast('Weighting reset to neutral for everyone');
 }
 async function importRoster(e) {
@@ -1470,7 +1506,36 @@ function buildingFor(tier, label) {
   return 'Weekend';
 }
 
-function runDraw() {
+async function runDraw() {
+  if (!requireLead()) return;
+  if (ensureWeekDefaults()) { saveState(); renderAllShiftLists(); }
+  await checkServerFreshness();
+  const issues = [];
+  const pillText = (document.getElementById('sync-label') || {}).textContent || '';
+  if (!sb || syncError || pendingSaves > 0 || serverIsNewer) {
+    const last = lastSyncedAt ? lastSyncedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'not yet this session';
+    issues.push(`Sync status is "${pillText}" (last synced ${last}). Drafting now could use out-of-date info or leave changes unsaved.`);
+  }
+  const noTime = ['tier1', 'tier1b', 'redgym', 'sac'].reduce((a, k) => a.concat(state.week[k].filter(sh => !(sh.start && sh.end)).map(sh => sh.label)), []);
+  if (noTime.length) issues.push(`No time set for: ${noTime.join(', ')}. Time-conflict checks will skip these.`);
+  state.week.events.filter(ev => ev.active).forEach(ev => {
+    if (!(ev.day && ev.start && ev.end)) issues.push(`${ev.name || 'Special event'} is marked as happening but has no day/time, so conflicts with volunteers can't be checked.`);
+    if (!ev.volunteers.length) issues.push(`${ev.name || 'Special event'} is marked as happening but has no volunteers yet.`);
+  });
+  if (state.results && state.results.rows && state.results.rows.length) issues.push('A draft is already in progress. Running again replaces the current results.');
+  if (!issues.length) { runDrawChecked(); return; }
+  document.getElementById('modal-root').innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <h3>Before you run the draft</h3>
+    <p class="hint">${escapeHtml(state.week.label || '')}</p>
+    <ul class="preflight-list">${issues.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>
+    <div class="row">
+      <button class="accent" onclick="runDrawChecked()">Run anyway</button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+}
+
+function runDrawChecked() {
   if (!requireLead()) return;
   if (ensureWeekDefaults()) { saveState(); renderAllShiftLists(); }
   if (state.managers.length === 0) { toast('Add building managers to the roster first'); return; }
@@ -2080,6 +2145,7 @@ async function finalizeWeek() {
     if (error) toast('Could not save history to server: ' + error.message);
     else historyId = data.id;
   }
+  historyPage = 1;
   state.history.unshift({ id: historyId, date: new Date().toISOString(), label, order, weights: weightsUsed, setup, rows });
 
   // Auto-award points for anyone who worked a special event, tagged as SYSTEM rather than a lead.
@@ -2205,6 +2271,7 @@ async function submitManualWeek() {
     if (error) { toast('Could not save to server: ' + error.message); return; }
     historyId = data.id;
   }
+  historyPage = 1;
   state.history.unshift({ id: historyId, date: new Date().toISOString(), label, order, weights: weightsUsed, setup, rows });
 
   const eventPreset = pointPresets.find(p => p.label === 'Worked a special event');
@@ -2324,11 +2391,32 @@ async function exportHistory() {
   }
 }
 
+const HISTORY_PAGE_SIZE = 8;
+let historyPage = 1;
+function goToHistoryPage(p) {
+  const totalPages = Math.max(1, Math.ceil(state.history.length / HISTORY_PAGE_SIZE));
+  historyPage = Math.min(Math.max(1, p), totalPages);
+  renderHistory();
+  const list = document.getElementById('history-list');
+  if (list) list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 function renderHistory() {
   const list = document.getElementById('history-list');
   list.innerHTML = '';
   document.getElementById('history-empty').style.display = state.history.length ? 'none' : 'block';
-  state.history.forEach(week => {
+  const totalPages = Math.max(1, Math.ceil(state.history.length / HISTORY_PAGE_SIZE));
+  if (historyPage > totalPages) historyPage = totalPages;
+  const pager = document.getElementById('history-pagination');
+  if (pager) {
+    if (totalPages > 1) {
+      pager.style.display = 'flex';
+      let html = `<button class="ghost" onclick="goToHistoryPage(${historyPage - 1})" ${historyPage <= 1 ? 'disabled' : ''}>Prev</button>`;
+      for (let p = 1; p <= totalPages; p++) html += `<button class="${p === historyPage ? 'secondary' : 'ghost'}" onclick="goToHistoryPage(${p})">${p}</button>`;
+      html += `<button class="ghost" onclick="goToHistoryPage(${historyPage + 1})" ${historyPage >= totalPages ? 'disabled' : ''}>Next</button>`;
+      pager.innerHTML = html;
+    } else { pager.style.display = 'none'; pager.innerHTML = ''; }
+  }
+  state.history.slice((historyPage - 1) * HISTORY_PAGE_SIZE, historyPage * HISTORY_PAGE_SIZE).forEach(week => {
     const div = document.createElement('div');
     div.className = 'week-entry';
     const d = new Date(week.date);
