@@ -275,6 +275,17 @@ tr:last-child td { border-bottom: none; }
   max-height: 46vh; overflow-y: auto;
 }
 @media (max-width: 760px) { #status-board:not(:empty) { position: static; max-height: none; } }
+#revealed-list .who[draggable="true"] { cursor: grab; border-bottom: 1px dashed var(--ink-soft); }
+.result-row.drop-target { outline: 2px dashed var(--accent-bright); outline-offset: 4px; border-radius: 8px; }
+.swap-tray { position: sticky; bottom: 0; z-index: 7; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 6px; margin-top: 14px; }
+.swap-tray-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--ink-soft); }
+.swap-tray-head input { width: 160px; padding: 5px 9px; font-size: 13.5px; }
+.tray-chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 6px; }
+.tray-chip { flex: 0 0 auto; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 13.5px; font-weight: 600; cursor: grab; user-select: none; white-space: nowrap; }
+.tray-chip.has-shift { color: var(--ink-soft); font-weight: 500; }
+.tray-chip.benched { font-style: italic; }
+.timeoff-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.timeoff-row select { min-width: 180px; }
 .preflight-list { margin: 0 0 14px; padding: 0; list-style: none; }
 .preflight-list li { padding: 8px 10px; margin-bottom: 6px; border-radius: 6px; background: var(--warm-soft); font-size: 14.5px; line-height: 1.4; }
 .day-card-row { display: flex; flex-wrap: wrap; gap: 14px; }
@@ -514,6 +525,13 @@ tr:last-child td { border-bottom: none; }
     <div class="row" style="justify-content:flex-end; margin-bottom:10px;">
       <button class="ghost" id="present-toggle-btn" onclick="togglePresentMode()">Full screen</button>
     </div>
+    <section class="card lead-only" id="timeoff-card">
+      <h2>Approved time off</h2>
+      <p class="hint">Someone off for a day still drafts in their normal spot, but can't pick shifts on that day and can't be added to an event that day. Off all three days sits them out of this draft entirely.</p>
+      <div id="timeoff-list"></div>
+      <button class="secondary" onclick="addTimeOff()">+ Add time off</button>
+    </section>
+
     <section class="card">
       <div class="row" style="justify-content:space-between;">
         <div>
@@ -538,6 +556,14 @@ tr:last-child td { border-bottom: none; }
       <div id="status-board" class="status-board"></div>
       <div id="revealed-list"></div>
       <div id="reveal-stage"></div>
+      <div id="swap-tray" class="swap-tray lead-only" style="display:none;">
+        <div class="swap-tray-head">
+          <strong style="color:var(--ink);">Drag to swap</strong>
+          <span>Drag a name onto any pick to place them there. Dropping someone who already has a shift trades the two picks.</span>
+          <input type="text" id="tray-search" placeholder="Find a name" oninput="renderTray()">
+        </div>
+        <div id="tray-chips" class="tray-chips"></div>
+      </div>
     </section>
   </div>
 
@@ -666,7 +692,7 @@ function loadStoredToken() {
   try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
 }
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const APP_UPDATED = '2026-10-19';
 
 // ---------- sync indicator ----------
@@ -738,7 +764,7 @@ async function saveState() {
     await sb.rpc('rpc_sync_week_config', {
       p_token: session.token, p_label: state.week.label, p_weekend_date: state.week.weekendDate,
       p_tier1: state.week.tier1, p_tier1b: state.week.tier1b, p_redgym: state.week.redgym, p_sac: state.week.sac,
-      p_events: state.week.events, p_no_double_book: state.week.noDoubleBook
+      p_events: state.week.events, p_no_double_book: state.week.noDoubleBook, p_time_off: state.week.timeOff
     });
     // Mark "we just pushed a change as of now" so an out-of-order/stale fetch that
     // reflects an earlier edit can't clobber this one back in on a later refresh.
@@ -785,6 +811,7 @@ function requireLead() {
 }
 function updateAuthUI() {
   renderSyncPill();
+  if (typeof renderTray === "function") renderTray();
   const el = document.getElementById('auth-widget');
   const banner = document.getElementById('view-only-banner');
   document.body.classList.toggle('signed-out', !session);
@@ -995,7 +1022,8 @@ function freshState() {
       redgym: defaultRedgym.map(t => ({ id: uid(), label: t.label, day: t.day, start: t.start, end: t.end })),
       sac: defaultSac.map(t => ({ id: uid(), label: t.label, day: t.day, start: t.start, end: t.end })),
       events: [{ id: uid(), name: 'Badger Bash', active: false, count: 4, volunteers: [], day: null, start: null, end: null }],
-      noDoubleBook: true
+      noDoubleBook: true,
+      timeOff: []
     },
     results: null
   };
@@ -1008,6 +1036,7 @@ if (!state.shop) state.shop = defaultShopItems.map(i => ({ ...i }));
 state.shop = state.shop.filter(i => i.id !== 'latepass' && i.name !== 'Late Pass');
 if (!state.pointsLog) state.pointsLog = [];
 if (!Array.isArray(state.archived)) state.archived = [];
+if (!Array.isArray(state.week.timeOff)) state.week.timeOff = [];
 if (state.week.weekendDate === undefined) state.week.weekendDate = null;
 if (!Array.isArray(state.week.redgym)) state.week.redgym = defaultRedgym.map(t => ({ id: uid(), label: t.label, day: t.day, start: t.start, end: t.end }));
 if (!Array.isArray(state.week.sac)) state.week.sac = defaultSac.map(t => ({ id: uid(), label: t.label, day: t.day, start: t.start, end: t.end }));
@@ -1443,7 +1472,60 @@ function addShift(arrKey) {
   state.week[arrKey].push({ id: uid(), label: label.trim(), day: inferDay(label) });
   saveState(); renderAllShiftLists();
 }
+const WEEKEND_DAYS = ['Fri', 'Sat', 'Sun'];
+function offDaysFor(name) {
+  const set = new Set();
+  (state.week.timeOff || []).forEach(t => { if (t.name === name) (t.days || []).forEach(d => set.add(d)); });
+  return set;
+}
+function isOffOn(name, day) { return !!day && offDaysFor(name).has(day); }
+function isOffAllWeekend(name) { const d = offDaysFor(name); return WEEKEND_DAYS.every(x => d.has(x)); }
+function renderTimeOff() {
+  const c = document.getElementById('timeoff-list');
+  if (!c) return;
+  c.innerHTML = '';
+  (state.week.timeOff || []).forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'timeoff-row';
+    const names = state.managers.slice().sort((a, b) => a.name.localeCompare(b.name));
+    row.innerHTML = `
+      <select onchange="updateTimeOffName('${t.id}', this.value)">
+        <option value="">Choose a person</option>
+        ${names.map(m => `<option value="${escapeHtml(m.name)}" ${t.name === m.name ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
+      </select>
+      <span style="color:var(--ink-soft); font-size:14px;">Off on</span>
+      ${WEEKEND_DAYS.map(d => `<label class="checkbox-row"><input type="checkbox" ${(t.days || []).includes(d) ? 'checked' : ''} onchange="toggleTimeOffDay('${t.id}', '${d}', this.checked)"> ${escapeHtml(dayDateLabel(d))}</label>`).join('')}
+      <button class="danger-ghost" onclick="removeTimeOff('${t.id}')">Remove</button>`;
+    c.appendChild(row);
+  });
+}
+function addTimeOff() {
+  if (!requireLead()) return;
+  state.week.timeOff.push({ id: uid(), name: '', days: [] });
+  saveState(); renderTimeOff();
+}
+function updateTimeOffName(id, val) {
+  if (!requireLead()) { renderTimeOff(); return; }
+  const t = state.week.timeOff.find(x => x.id === id);
+  if (t) t.name = val;
+  saveState();
+}
+function toggleTimeOffDay(id, day, on) {
+  if (!requireLead()) { renderTimeOff(); return; }
+  const t = state.week.timeOff.find(x => x.id === id);
+  if (!t) return;
+  const set = new Set(t.days || []);
+  if (on) set.add(day); else set.delete(day);
+  t.days = WEEKEND_DAYS.filter(d => set.has(d));
+  saveState();
+}
+function removeTimeOff(id) {
+  if (!requireLead()) return;
+  state.week.timeOff = state.week.timeOff.filter(x => x.id !== id);
+  saveState(); renderTimeOff();
+}
 function renderAllShiftLists() {
+  renderTimeOff();
   renderShiftList('tier1-list', 'tier1');
   renderShiftList('tier1b-list', 'tier1b');
   renderShiftList('redgym-list', 'redgym');
@@ -1680,7 +1762,7 @@ function runDrawChecked() {
   clearInterval(revealCountdownTimer);
   closeModal();
 
-  const eligible = state.managers.filter(m => !m.skipNext && !m.benched);
+  const eligible = state.managers.filter(m => !m.skipNext && !m.benched && !isOffAllWeekend(m.name));
   const totalSlots = state.week.tier1.length + state.week.tier1b.length + state.week.redgym.length + state.week.sac.length;
 
   if (totalSlots > eligible.length) {
@@ -1701,7 +1783,9 @@ function runDrawChecked() {
 
 function performDraw() {
   const noDouble = state.week.noDoubleBook;
-  let pool = state.managers.filter(m => !m.skipNext && !m.benched);
+  let pool = state.managers.filter(m => !m.skipNext && !m.benched && !isOffAllWeekend(m.name));
+  const offAll = state.managers.filter(m => !m.benched && !m.skipNext && isOffAllWeekend(m.name));
+  if (offAll.length) toast(`${offAll.map(m => m.name).join(', ')} sitting out (off all weekend)`);
   const skipped = state.managers.filter(m => m.skipNext);
   if (skipped.length) toast(`${skipped.map(m => m.name).join(', ')} sitting out this draft (Guaranteed Weekend Off)`);
   const drawOrder = [];
@@ -1793,6 +1877,7 @@ function ensureVolunteersFilled(ev) {
   const bumped = [];
   volunteers.forEach(v => {
     if (slotsLeft <= 0) return;
+    if (isOffOn(v, ev.day)) { bumped.push(v); return; }
     if (hasTimeSet && isBusyAt(v, ev.day, ev.start, ev.end)) { bumped.push(v); return; }
     state.results.rows.push({
       id: uid(), tier: 2, eventName: ev.name || 'Special Event', shiftLabel: (ev.name || 'Special Event') + ' (volunteer)',
@@ -1954,13 +2039,17 @@ function buildResultRow(r, i) {
   const options = tierOptionsFor(r.tier);
   if (options.length) {
     const claimed = new Set(state.results.rows.filter(rr => rr.tier === r.tier && rr.id !== r.id && rr.pickedOption).map(rr => rr.pickedOption));
-    const avail = options.filter(opt => !claimed.has(opt));
+    const offDays = offDaysFor(r.workingName);
+    const metaList = r.tier === 1 ? (state.results.weekendMeta || []) : r.tier === 3 ? (state.results.redgymMeta || []) : (state.results.sacMeta || []);
+    const dayOf = {}; metaList.forEach(m => { dayOf[m.label] = m.day; });
+    const avail = options.filter(opt => !claimed.has(opt) && (r.pickedOption === opt || !offDays.has(dayOf[opt])));
     pickerHtml = `<select class="pick-select" onchange="setPickedOption('${r.id}', this.value)">
       <option value="">What did they pick?</option>
       ${avail.map(opt => `<option value="${escapeHtml(opt)}" ${r.pickedOption === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('')}
     </select>`;
   }
 
+  row.dataset.rowId = r.id;
   row.innerHTML = `
     <div class="rank-num">${i + 1}</div>
     <div class="result-main">
@@ -1968,12 +2057,81 @@ function buildResultRow(r, i) {
       <div class="assign-line">
         ${isEmpty ? 'Not filled' : 'Up to pick:'} <span class="who">${escapeHtml(isEmpty ? '' : nicknameFor(r.workingName))}</span>
         ${r.swapped ? `<span class="swap-note"> (swapped for ${escapeHtml(r.assignedName)})</span>` : ''}
+        ${(() => { const od = WEEKEND_DAYS.filter(d => offDaysFor(r.workingName).has(d)); return od.length ? `<span class="swap-note"> (off ${od.join(', ')})</span>` : ''; })()}
       </div>
       ${pickerHtml}
     </div>
     <div class="result-actions">${swapBtn}</div>
   `;
+  if (session && r.tier !== 2) {
+    const who = row.querySelector('.assign-line .who');
+    if (who && !isEmpty) {
+      who.draggable = true;
+      who.title = 'Drag onto another pick to trade places';
+      who.addEventListener('dragstart', e => startDragPerson(e, r.workingName, r.id));
+      who.addEventListener('dragend', endDragPerson);
+    }
+    row.addEventListener('dragover', e => { if (dragPayloadOk()) { e.preventDefault(); row.classList.add('drop-target'); } });
+    row.addEventListener('dragleave', e => { if (!row.contains(e.relatedTarget)) row.classList.remove('drop-target'); });
+    row.addEventListener('drop', e => { e.preventDefault(); row.classList.remove('drop-target'); dropPersonOnRow(e, r.id); });
+  }
   return row;
+}
+let draggedPerson = null;
+function dragPayloadOk() { return !!draggedPerson; }
+function startDragPerson(e, name, fromRowId) {
+  draggedPerson = { name, fromRowId: fromRowId || null };
+  try { e.dataTransfer.setData('text/plain', name); e.dataTransfer.effectAllowed = 'move'; } catch (err) {}
+}
+function endDragPerson() {
+  draggedPerson = null;
+  document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+}
+function dropPersonOnRow(e, rowId) {
+  const payload = draggedPerson; draggedPerson = null;
+  if (!payload || !requireLead()) return;
+  placePerson(rowId, payload.name);
+}
+function placePerson(rowId, name) {
+  const target = state.results.rows.find(r => r.id === rowId);
+  if (!target || target.tier === 2) return;
+  if (target.workingName === name) return;
+  const oldName = target.workingName;
+  const targetEmpty = oldName === '(not enough people)';
+  const source = state.results.rows.find(r => r.id !== target.id && r.tier !== 2 && r.workingName === name);
+  if (targetEmpty && source) { toast('That pick is open. Drag someone who has no shift yet, or use Fill.'); return; }
+  if (!target.swapEligible || (source && !source.swapEligible)) { toast('That pick is locked and can\'t be swapped.'); return; }
+  if (targetEmpty) {
+    target.workingName = name; target.assignedName = name;
+    if (!state.results.drawOrder.includes(name)) state.results.drawOrder.push(name);
+  } else {
+    target.workingName = name; target.swapped = name !== target.assignedName;
+    target.pickedOption = null;
+    if (source) { source.workingName = oldName; source.swapped = oldName !== source.assignedName; source.pickedOption = null; }
+  }
+  saveState(); renderResults();
+  toast(source ? `${name} and ${oldName} traded picks` : `${name} is now covering that pick`);
+}
+function renderTray() {
+  const tray = document.getElementById('swap-tray'), chips = document.getElementById('tray-chips');
+  if (!tray || !chips) return;
+  const show = !!session && !!state.results && state.results.revealedIndex >= 0;
+  tray.style.display = show ? '' : 'none';
+  if (!show) return;
+  const q = ((document.getElementById('tray-search') || {}).value || '').trim().toLowerCase();
+  const holders = new Set(state.results.rows.filter(r => r.tier !== 2).map(r => r.workingName));
+  chips.innerHTML = '';
+  state.managers.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(m => {
+    if (q && !(m.name.toLowerCase().includes(q) || (m.nickname || '').toLowerCase().includes(q))) return;
+    const chip = document.createElement('span');
+    chip.className = 'tray-chip' + (holders.has(m.name) ? ' has-shift' : '') + (m.benched ? ' benched' : '');
+    chip.draggable = true;
+    chip.textContent = nicknameFor(m.name) + (holders.has(m.name) ? ' \u2713' : '');
+    chip.title = holders.has(m.name) ? 'Already has a pick. Dropping trades picks.' : (m.benched ? 'Benched' : 'No pick yet');
+    chip.addEventListener('dragstart', e => startDragPerson(e, m.name, null));
+    chip.addEventListener('dragend', endDragPerson);
+    chips.appendChild(chip);
+  });
 }
 function setPickedOption(rowId, value) {
   const row = state.results.rows.find(r => r.id === rowId);
@@ -2036,6 +2194,7 @@ function renderStatusBoard() {
 function renderResults() {
   if (!state.results) return;
   renderStatusBoard();
+  renderTray();
   const revealedList = document.getElementById('revealed-list');
   const stage = document.getElementById('reveal-stage');
   revealedList.innerHTML = '';
@@ -2220,7 +2379,7 @@ function openSwap(rowId) {
   modal.innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <h3>Swap "${escapeHtml(row.shiftLabel)}"</h3>
     <p class="hint">${escapeHtml(row.assignedName)} keeps their place in next week's weighting either way. Pick who's actually covering it:</p>
-    ${pool.map(m => `<button class="secondary cand" onclick="doSwap('${rowId}','${m.id}')">${escapeHtml(m.name)}${m.benched ? ' <span style="color:var(--ink-soft); font-size:12px;">(benched)</span>' : ''}</button>`).join('')}
+    ${pool.map(m => `<button class="secondary cand" onclick="doSwap('${rowId}','${m.id}')">${escapeHtml(m.name)}${m.benched ? ' <span style="color:var(--ink-soft); font-size:12px;">(benched)</span>' : ''}${offDaysFor(m.name).size ? ` <span style="color:var(--warm); font-size:12px;">(off ${WEEKEND_DAYS.filter(d => offDaysFor(m.name).has(d)).join(', ')})</span>` : ''}</button>`).join('')}
     <button class="ghost" onclick="closeModal()" style="margin-top:6px;">Cancel</button>
   </div></div>`;
 }
@@ -2308,6 +2467,7 @@ async function finalizeWeek() {
 
   state.week.tier1b = [];
   state.week.events.forEach(ev => { ev.active = false; ev.volunteers = []; });
+  state.week.timeOff = [];
   state.week.label = '';
   state.week.weekendDate = null;
   ensureWeekDefaults();
@@ -3094,6 +3254,7 @@ async function loadFromSupabase() {
         if (w.sac && w.sac.length) state.week.sac = w.sac;
         if (w.events && w.events.length) state.week.events = w.events;
         state.week.noDoubleBook = w.no_double_book !== false;
+        state.week.timeOff = Array.isArray(w.time_off) ? w.time_off : [];
       }
     }
     if (draftRes.data && draftRes.data.is_active) {
