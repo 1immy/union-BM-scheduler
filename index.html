@@ -286,6 +286,14 @@ tr:last-child td { border-bottom: none; }
 .tray-chip.benched { font-style: italic; }
 .timeoff-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
 .timeoff-row select { min-width: 180px; }
+.id-missing { font-size: 11.5px; color: var(--warm); border: 1px solid var(--warm-soft); background: var(--warm-soft); border-radius: 999px; padding: 1px 8px; margin-left: 6px; font-weight: 600; white-space: nowrap; }
+.mypoints-card { max-width: 520px; }
+.mypoints-result { margin-top: 18px; min-height: 24px; }
+.mypoints-name { font-family: 'Zilla Slab', serif; font-weight: 700; font-size: 20px; }
+.mypoints-total { font-family: 'Anton', 'Zilla Slab', serif; font-size: 56px; line-height: 1.1; letter-spacing: 0.02em; margin-top: 4px; }
+.mypoints-total small { font-family: 'Inter', sans-serif; font-size: 16px; color: var(--ink-soft); font-weight: 600; letter-spacing: 0; margin-left: 6px; }
+.mypoints-msg { color: var(--ink-soft); font-size: 15px; }
+.mypoints-msg.err { color: var(--danger); }
 .preflight-list { margin: 0 0 14px; padding: 0; list-style: none; }
 .preflight-list li { padding: 8px 10px; margin-bottom: 6px; border-radius: 6px; background: var(--warm-soft); font-size: 14.5px; line-height: 1.4; }
 .day-card-row { display: flex; flex-wrap: wrap; gap: 14px; }
@@ -381,6 +389,7 @@ tr:last-child td { border-bottom: none; }
       <button class="tab-btn" data-tab="draw">Draw &amp; Reveal</button>
       <button class="tab-btn" data-tab="history">History</button>
       <button class="tab-btn lead-only" data-tab="points">Points</button>
+      <button class="tab-btn" data-tab="mypoints">My Points</button>
       <button class="tab-btn" data-tab="shop">Brownie Shop</button>
     </nav>
     <div class="main-content">
@@ -396,6 +405,7 @@ tr:last-child td { border-bottom: none; }
         <button class="secondary" onclick="document.getElementById('import-file').click()">Import list</button>
         <input type="file" id="import-file" accept=".csv,.txt" style="display:none;" onchange="importRoster(event)">
         <button class="secondary" onclick="exportRoster()">Export list</button>
+        <button class="secondary" onclick="openWiscardImport()">Add Wiscard IDs</button>
       </div>
 
       <div class="row lead-only" style="margin-bottom:14px;">
@@ -617,6 +627,19 @@ tr:last-child td { border-bottom: none; }
     </section>
   </div>
 
+  <!-- MY POINTS (public) -->
+  <div class="panel" id="panel-mypoints">
+    <section class="card mypoints-card">
+      <h2>My Brownie Points</h2>
+      <p class="hint">Enter your Wiscard ID number to see your current total. Only your total is shown, and the number is not saved on this device.</p>
+      <div class="row">
+        <input type="password" id="mypoints-id" inputmode="numeric" autocomplete="off" placeholder="Wiscard ID number" style="flex:1; min-width:180px;" onkeydown="if(event.key==='Enter') lookupMyPoints()">
+        <button class="accent" id="mypoints-btn" onclick="lookupMyPoints()">Look up <span class="key-hint">&#9166;</span></button>
+      </div>
+      <div class="mypoints-result" id="mypoints-result" aria-live="polite"></div>
+    </section>
+  </div>
+
   <!-- BROWNIE SHOP -->
   <div class="panel" id="panel-shop">
     <section class="card">
@@ -692,8 +715,8 @@ function loadStoredToken() {
   try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
 }
 
-const APP_VERSION = '1.4.0';
-const APP_UPDATED = '2026-10-19';
+const APP_VERSION = '1.5.0';
+const APP_UPDATED = '2026-11-22';
 
 // ---------- sync indicator ----------
 let pendingSaves = 0;
@@ -721,12 +744,13 @@ function renderSyncPill() {
   pill.setAttribute('aria-label', text + '. ' + tip);
 }
 async function fetchServerFingerprint() {
+  const leadFp = session ? sb.rpc('rpc_points_fingerprint', { p_token: session.token }) : Promise.resolve({ data: null, error: null });
   const [m, w, d, h, p, sh] = await Promise.all([
-    sb.from('managers').select('id,name,nickname,credit,override,points,skip_next,swap_insurance,benched,archived').order('id'),
+    sb.from('managers').select('id,name,nickname,credit,override,skip_next,swap_insurance,benched,archived').order('id'),
     sb.from('week_config').select('updated_at').eq('id', true).single(),
     sb.from('draft_state').select('updated_at').eq('id', true).single(),
     sb.from('history_weeks').select('id,created_at').order('created_at', { ascending: false }).limit(1),
-    sb.from('points_log').select('id').order('created_at', { ascending: false }).limit(1),
+    leadFp,
     sb.from('shop_items').select('id,name,cost,description,icon').order('id')
   ]);
   if ([m, w, d, h, p, sh].some(r => r.error)) throw new Error('fingerprint failed');
@@ -754,6 +778,16 @@ async function onSyncPillClick() {
   if (!sb) { location.reload(); return; }
   await loadFromSupabase();
   toast('Refreshed');
+}
+
+let pointsLoaded = false;          // true only once this lead session has read real totals from the server
+let pointsBaseline = new Map();    // id -> points as last read/written, so we only send points that changed here
+let wiscardIds = new Set();        // manager ids that have an ID on file (the IDs themselves are never readable)
+function clearLeadData() {
+  pointsLoaded = false; pointsBaseline = new Map(); wiscardIds = new Set();
+  state.pointsLog = [];
+  state.managers.forEach(m => { m.points = 0; });
+  state.archived.forEach(m => { m.points = 0; });
 }
 
 async function saveState() {
@@ -784,10 +818,16 @@ async function saveState() {
     }
     const validManagers = state.managers.filter(m => m.id && m.id.length === 36);
     if (validManagers.length) {
-      await sb.rpc('rpc_sync_managers', {
+      const changedPoints = pointsLoaded
+        ? validManagers.filter(m => (m.points || 0) !== (pointsBaseline.get(m.id) ?? (m.points || 0))).map(m => ({ id: m.id, points: m.points || 0 }))
+        : [];
+      const { error: syncErr } = await sb.rpc('rpc_sync_managers', {
         p_token: session.token,
-        p_managers: validManagers.map(m => ({ id: m.id, credit: m.credit || 0, override: m.override, points: m.points || 0, skip_next: !!m.skipNext, swap_insurance: m.swapInsurance || 0, benched: !!m.benched }))
+        p_managers: validManagers.map(m => ({ id: m.id, credit: m.credit || 0, override: m.override, skip_next: !!m.skipNext, swap_insurance: m.swapInsurance || 0, benched: !!m.benched })),
+        p_points: changedPoints.length ? changedPoints : null
       });
+      if (syncErr) throw syncErr;
+      changedPoints.forEach(c => pointsBaseline.set(c.id, c.points));
     }
     syncError = false;
   } catch (e) {
@@ -852,11 +892,14 @@ async function submitSignIn() {
   updateAuthUI();
   toast(`Signed in as ${session.username}`);
   if (session.mustReset) openForceReset();
+  loadFromSupabase();
 }
 async function signOut() {
   if (sb && session) { try { await sb.rpc('logout_lead', { p_token: session.token }); } catch (e) {} }
   session = null;
   storeToken(null);
+  clearLeadData();
+  saveState();
   updateAuthUI();
   toast('Signed out');
 }
@@ -1070,6 +1113,47 @@ function toast(msg) {
   toast._h = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+// ---------- public "My Points" lookup ----------
+let myPointsTimer = null;
+function clearMyPoints() {
+  clearTimeout(myPointsTimer);
+  const r = document.getElementById('mypoints-result'); if (r) r.innerHTML = '';
+  const i = document.getElementById('mypoints-id'); if (i) i.value = '';
+}
+function showMyPointsMsg(text, isErr) {
+  const r = document.getElementById('mypoints-result');
+  r.innerHTML = '';
+  const p = document.createElement('div');
+  p.className = 'mypoints-msg' + (isErr ? ' err' : '');
+  p.textContent = text;
+  r.appendChild(p);
+}
+async function lookupMyPoints() {
+  const input = document.getElementById('mypoints-id'), btn = document.getElementById('mypoints-btn');
+  const digits = input.value.replace(/\D/g, '');
+  if (digits.length < 8) { showMyPointsMsg('Enter your full Wiscard ID number.', true); return; }
+  if (!sb) { showMyPointsMsg('Can\'t reach the server right now.', true); return; }
+  btn.disabled = true;
+  let res;
+  try { res = await sb.rpc('rpc_my_points', { p_wiscard: input.value }); }
+  catch (e) { res = { error: e }; }
+  input.value = '';
+  btn.disabled = false;
+  if (res.error || !res.data) { showMyPointsMsg('Something went wrong. Try again in a moment.', true); return; }
+  const d = res.data;
+  if (d.ok) {
+    const r = document.getElementById('mypoints-result');
+    r.innerHTML = '';
+    const n = document.createElement('div'); n.className = 'mypoints-name'; n.textContent = d.name;
+    const t = document.createElement('div'); t.className = 'mypoints-total';
+    t.textContent = String(d.points); const u = document.createElement('small'); u.textContent = 'points'; t.appendChild(u);
+    r.appendChild(n); r.appendChild(t);
+    clearTimeout(myPointsTimer); myPointsTimer = setTimeout(clearMyPoints, 60000);
+  } else if (d.error === 'locked') showMyPointsMsg('Too many tries from this connection. Wait about 15 minutes and try again.', true);
+  else if (d.error === 'busy') showMyPointsMsg('Lots of lookups right now. Try again in a minute.', true);
+  else showMyPointsMsg('No match. Check the number, or ask a lead to add your ID.', true);
+}
+
 // ---------- tabs ----------
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1077,6 +1161,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab !== 'mypoints') clearMyPoints();
   });
 });
 function goToTab(tab) {
@@ -1138,7 +1223,7 @@ function rosterRowHtml(m, benched) {
     : `<button class="ghost" onclick="toggleBenchStatus('${m.id}', true)">Bench</button>
        <button class="ghost" onclick="openEditManager('${m.id}')">Edit</button>`;
   return `
-    <td class="roster-name">${escapeHtml(m.name)}${m.nickname ? ` <span style="color:var(--ink-soft); font-weight:500;">"${escapeHtml(m.nickname)}"</span>` : ''}</td>
+    <td class="roster-name">${escapeHtml(m.name)}${m.nickname ? ` <span style="color:var(--ink-soft); font-weight:500;">"${escapeHtml(m.nickname)}"</span>` : ''}${(session && !wiscardIds.has(m.id)) ? '<span class="id-missing lead-only" title="No Wiscard ID on file, so they can\'t look up their points yet">no ID</span>' : ''}</td>
     <td class="pos-history">${lastPos ? '#' + lastPos + ' last week' : '<span style="color:var(--ink-soft)">no history</span>'}</td>
     <td class="num">${(m.credit || 0).toFixed(1)}</td>
     <td><span class="weight-pill">weight ${w}</span></td>
@@ -1216,7 +1301,7 @@ async function addManager() {
   }
 }
 function managerSyncRecord(m, archived) {
-  return { id: m.id, credit: m.credit || 0, override: m.override, points: m.points || 0, skip_next: !!m.skipNext, swap_insurance: m.swapInsurance || 0, benched: !!m.benched, archived };
+  return { id: m.id, credit: m.credit || 0, override: m.override, skip_next: !!m.skipNext, swap_insurance: m.swapInsurance || 0, benched: !!m.benched, archived };
 }
 function openArchiveManager(id) {
   if (!requireLead()) return;
@@ -1300,6 +1385,54 @@ function renderArchive() {
     body.appendChild(tr);
   });
 }
+async function clearWiscardId(id) {
+  if (!requireLead()) return;
+  if (!confirm('Remove this Wiscard ID? They will not be able to look up their points until a new one is added.')) return;
+  const { error } = await sb.rpc('rpc_clear_wiscard', { p_token: session.token, p_manager_id: id });
+  if (error) { toast('Could not remove it: ' + error.message); return; }
+  wiscardIds.delete(id); renderRoster(); closeModal();
+  toast('Wiscard ID removed');
+}
+function openWiscardImport() {
+  if (!requireLead()) return;
+  const missing = state.managers.filter(m => !wiscardIds.has(m.id)).length;
+  document.getElementById('modal-root').innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" style="max-width:520px;" onclick="event.stopPropagation()">
+    <h3>Add Wiscard IDs</h3>
+    <p class="hint">One person per line: name, then ID number (comma, tab or space between). Names must match the roster. ${missing} of ${state.managers.length} still have no ID. IDs are stored scrambled and are never shown again.</p>
+    <textarea id="wiscard-bulk" rows="9" autocomplete="off" spellcheck="false" placeholder="Jane Smith, 9012345678&#10;Alex Doe, 9087654321" style="width:100%;margin-bottom:10px;"></textarea>
+    <div class="row">
+      <button class="accent" id="wiscard-bulk-btn" onclick="submitWiscardImport()">Save IDs</button>
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div></div>`;
+}
+async function submitWiscardImport() {
+  if (!requireLead()) return;
+  const area = document.getElementById('wiscard-bulk');
+  const lines = area.value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const rows = [], badLines = [];
+  lines.forEach(l => {
+    const mt = l.match(/^(.*?)[\s,;\t]+([\d][\d\s\-]{6,18}\d)$/);
+    if (mt && mt[1].trim()) rows.push({ name: mt[1].trim().replace(/^["']|["']$/g, ''), id: mt[2] });
+    else badLines.push(l.replace(/[\d\-]{6,}/g, '\u2022\u2022\u2022'));
+  });
+  if (!rows.length) { toast('No "name, ID" lines found'); return; }
+  const btn = document.getElementById('wiscard-bulk-btn'); btn.disabled = true;
+  const { data, error } = await sb.rpc('rpc_import_wiscards', { p_token: session.token, p_rows: rows });
+  area.value = '';
+  if (error || !data) { btn.disabled = false; toast('Could not save: ' + ((error && error.message) || 'unknown error')); return; }
+  try { const ws = await sb.rpc('rpc_wiscard_status', { p_token: session.token }); if (!ws.error && Array.isArray(ws.data)) wiscardIds = new Set(ws.data); } catch (e) {}
+  renderRoster();
+  const list = (title, arr) => arr.length ? `<p class="hint" style="margin-bottom:6px;"><strong style="color:var(--ink);">${title}:</strong> ${arr.map(escapeHtml).join(', ')}</p>` : '';
+  document.getElementById('modal-root').innerHTML = `<div class="modal-backdrop" onclick="closeModal(event)"><div class="modal" style="max-width:520px;" onclick="event.stopPropagation()">
+    <h3>${data.set} ID${data.set === 1 ? '' : 's'} saved</h3>
+    ${list('Name not on the roster', data.unmatched || [])}
+    ${list('ID not 8 to 12 digits', data.invalid || [])}
+    ${list('ID already used by someone else', data.duplicate || [])}
+    ${badLines.length ? `<p class="hint" style="margin-bottom:6px;"><strong style="color:var(--ink);">Lines I couldn't read:</strong> ${badLines.length}</p>` : ''}
+    <button class="accent" onclick="closeModal()" style="margin-top:8px;">Done</button>
+  </div></div>`;
+}
 function openEditManager(id) {
   if (!requireLead()) return;
   const m = state.managers.find(x => x.id === id);
@@ -1314,6 +1447,9 @@ function openEditManager(id) {
     <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Manual weight override</label>
     <input type="number" id="edit-override" step="0.1" value="${m.override ?? ''}" placeholder="Leave blank for automatic weighting" style="width:100%;margin-bottom:8px;" onkeydown="if(event.key==='Enter') submitEditManager('${id}')">
     <p class="hint" style="margin-bottom:14px;">Automatic weight right now would be ${autoWeight(m)}.</p>
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Wiscard ID (lets them see their points)</label>
+    <input type="password" id="edit-wiscard" name="bm-wiscard-field" autocomplete="new-password" inputmode="numeric" placeholder="${wiscardIds.has(id) ? 'On file. Type a new number to replace it' : 'Not set yet'}" style="width:100%;margin-bottom:6px;" onkeydown="if(event.key==='Enter') submitEditManager('${id}')">
+    <p class="hint" style="margin-bottom:14px;">Stored scrambled. Once saved, nobody can read it back, including leads.${wiscardIds.has(id) ? ` <a href="#" style="color:var(--accent-bright);" onclick="clearWiscardId('${id}'); return false;">Remove it</a>` : ''}</p>
     <div class="row">
       <button class="accent" onclick="submitEditManager('${id}')">Save <span class="key-hint">&#9166;</span></button>
       <button class="ghost" onclick="closeModal()">Cancel</button>
@@ -1330,6 +1466,13 @@ async function submitEditManager(id) {
   const newOverride = overrideVal.trim() === '' ? null : Number(overrideVal);
   const nameChanged = newName !== m.name;
   const nicknameChanged = newNickname !== (m.nickname || '');
+  const wiscardVal = (document.getElementById('edit-wiscard') || { value: '' }).value.trim();
+  if (wiscardVal) {
+    if (!sb) { toast('Can\'t save an ID without a server connection'); return; }
+    const { data: wres, error: werr } = await sb.rpc('rpc_set_wiscard', { p_token: session.token, p_manager_id: id, p_wiscard: wiscardVal });
+    if (werr || !wres || !wres.ok) { toast((wres && wres.error) || ('Could not save the ID: ' + ((werr && werr.message) || 'unknown error'))); return; }
+    wiscardIds.add(id);
+  }
 
   if ((nameChanged || nicknameChanged) && sb) {
     const { error } = await sb.rpc('rpc_rename_manager', { p_token: session.token, p_id: id, p_new_name: newName, p_nickname: newNickname || null });
@@ -3228,11 +3371,16 @@ async function loadFromSupabase() {
       sb.from('managers').select('*').order('name'),
       sb.from('shop_items').select('*').order('cost'),
       sb.from('history_weeks').select('*').order('created_at', { ascending: false }),
-      sb.from('points_log').select('*').order('created_at', { ascending: false }).limit(500),
+      session ? sb.rpc('rpc_lead_points', { p_token: session.token }) : Promise.resolve({ data: null, error: null }),
       sb.from('week_config').select('*').eq('id', true).single(),
       sb.from('draft_state').select('*').eq('id', true).single()
     ]);
 
+    if (pointsRes.error && /not signed in|session expired/i.test(pointsRes.error.message || '')) {
+      session = null; storeToken(null); clearLeadData(); updateAuthUI();
+      toast('Your session expired. Sign in again to keep editing.');
+      pointsRes.error = null;
+    }
     const failures = [managersRes, shopRes, historyRes, pointsRes, weekRes, draftRes].filter(r => r.error);
     if (failures.length) {
       console.warn('Supabase load errors:', failures.map(r => r.error));
@@ -3240,16 +3388,17 @@ async function loadFromSupabase() {
     }
 
     if (managersRes.data) {
+      const prevPts = new Map([...state.managers, ...state.archived].map(m => [m.id, m.points || 0]));
       const allRows = managersRes.data;
       state.archived = allRows.filter(r => r.archived).map(r => ({
         id: r.id, name: r.name, credit: Number(r.credit) || 0,
         override: r.override === null || r.override === undefined ? null : Number(r.override),
-        points: r.points || 0, skipNext: false, swapInsurance: r.swap_insurance || 0, benched: !!r.benched, nickname: r.nickname || null
+        points: prevPts.get(r.id) || 0, skipNext: false, swapInsurance: r.swap_insurance || 0, benched: !!r.benched, nickname: r.nickname || null
       }));
       state.managers = allRows.filter(r => !r.archived).map(r => ({
         id: r.id, name: r.name, credit: Number(r.credit) || 0,
         override: r.override === null || r.override === undefined ? null : Number(r.override),
-        points: r.points || 0, skipNext: !!r.skip_next, swapInsurance: r.swap_insurance || 0, benched: !!r.benched, nickname: r.nickname || null
+        points: prevPts.get(r.id) || 0, skipNext: !!r.skip_next, swapInsurance: r.swap_insurance || 0, benched: !!r.benched, nickname: r.nickname || null
       }));
     }
     if (shopRes.data) {
@@ -3261,11 +3410,23 @@ async function loadFromSupabase() {
         weights: r.weights || [], setup: r.setup || {}, rows: r.rows || []
       }));
     }
-    if (pointsRes.data) {
-      state.pointsLog = pointsRes.data.map(r => ({
+    if (pointsRes.data && session) {
+      const pmap = new Map((pointsRes.data.points || []).map(x => [x.id, x.points || 0]));
+      [...state.managers, ...state.archived].forEach(m => { m.points = pmap.get(m.id) ?? 0; });
+      pointsBaseline = new Map(pmap);
+      pointsLoaded = true;
+      state.pointsLog = (pointsRes.data.log || []).map(r => ({
         id: r.id, date: r.created_at, name: r.manager_name, delta: r.delta, reason: r.reason,
         leadName: r.lead_name || null, balanceBefore: r.balance_before, balanceAfter: r.balance_after
       }));
+    } else if (!session) {
+      clearLeadData();
+    }
+    if (session) {
+      try {
+        const ws = await sb.rpc('rpc_wiscard_status', { p_token: session.token });
+        if (!ws.error && Array.isArray(ws.data)) wiscardIds = new Set(ws.data);
+      } catch (e) { /* the badge is a convenience; ignore */ }
     }
     if (weekRes.data) {
       const w = weekRes.data;
@@ -3313,7 +3474,7 @@ async function loadFromSupabase() {
 function setupRealtime() {
   if (!sb) return;
   const channel = sb.channel('bm-drafts-sync');
-  ['managers', 'shop_items', 'history_weeks', 'points_log', 'week_config', 'draft_state'].forEach(t => {
+  ['managers', 'shop_items', 'history_weeks', 'week_config', 'draft_state'].forEach(t => {
     channel.on('postgres_changes', { event: '*', schema: 'public', table: t }, () => { loadFromSupabase(); });
   });
   channel.subscribe();
@@ -3352,6 +3513,7 @@ async function init() {
   if (sb) {
     try { await restoreSession(); } catch (e) { console.warn('session restore failed', e); }
     await loadFromSupabase();
+    if (!session) clearLeadData();
     if (ensureWeekDefaults() && session && session.token) { saveState(); renderAllShiftLists(); }
     setupRealtime();
   } else {
