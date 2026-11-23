@@ -159,6 +159,7 @@ section.card h2 {
   font-size: 21px; font-weight: 600; margin: 0 0 5px;
 }
 section.card p.hint { color: var(--ink-soft); font-size: 14.5px; margin: 0 0 16px; }
+.modal p.hint { color: var(--ink-soft); font-size: 14px; line-height: 1.45; margin: 0 0 14px; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 input[type=text], input[type=number], input[type=password], input[type=date], textarea, select {
@@ -269,12 +270,18 @@ tr:last-child td { border-bottom: none; }
 .settings-row label { font-size: 14.5px; color: var(--ink-soft); font-weight: 600; }
 
 .status-board { margin-bottom: 18px; }
-#status-board:not(:empty) {
-  position: sticky; top: 0; z-index: 8; background: var(--surface);
-  padding: 10px 0 14px; border-bottom: 1px solid var(--line);
-  max-height: 46vh; overflow-y: auto;
+/* Lite "still open" strip: zero layout height, follows the page once the full board scrolls away */
+.status-lite-anchor { position: sticky; top: 0; z-index: 8; height: 0; }
+.status-lite {
+  position: absolute; left: 0; right: 0; top: 0;
+  display: none; align-items: center; gap: 6px; flex-wrap: wrap;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 5px 10px; max-height: 64px; overflow-y: auto; font-size: 12px;
 }
-@media (max-width: 760px) { #status-board:not(:empty) { position: static; max-height: none; } }
+.status-lite.show { display: flex; }
+.status-lite .lite-title { color: var(--ink-soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; margin-right: 2px; }
+.status-lite .lite-day { color: var(--ink-soft); font-weight: 800; font-size: 11.5px; margin-left: 6px; }
+.status-lite .chip { font-size: 11.5px; padding: 1px 8px; font-weight: 600; }
 #revealed-list .who[draggable="true"] { cursor: grab; border-bottom: 1px dashed var(--ink-soft); }
 .result-row.drop-target { outline: 2px dashed var(--accent-bright); outline-offset: 4px; border-radius: 8px; }
 .swap-tray { position: sticky; bottom: 0; z-index: 7; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 6px; margin-top: 14px; }
@@ -564,6 +571,7 @@ tr:last-child td { border-bottom: none; }
       </div>
       <p class="hint">The order is already locked in. Draw just reveals it. Buildings come first: once every building pick is revealed, use "Fill special events" to cover Special Event slots separately. Swap can reassign any pick to anyone on the roster or bench.</p>
       <div id="status-board" class="status-board"></div>
+      <div class="status-lite-anchor"><div id="status-lite" class="status-lite"></div></div>
       <div id="revealed-list"></div>
       <div id="reveal-stage"></div>
       <div id="swap-tray" class="swap-tray lead-only" style="display:none;">
@@ -631,7 +639,7 @@ tr:last-child td { border-bottom: none; }
   <div class="panel" id="panel-mypoints">
     <section class="card mypoints-card">
       <h2>My Brownie Points</h2>
-      <p class="hint">Enter your Wiscard ID number to see your current total. Only your total is shown, and the number is not saved on this device.</p>
+      <p class="hint">Enter your Wiscard ID number to see your current total.</p>
       <div class="row">
         <input type="password" id="mypoints-id" inputmode="numeric" autocomplete="off" placeholder="Wiscard ID number" style="flex:1; min-width:180px;" onkeydown="if(event.key==='Enter') lookupMyPoints()">
         <button class="accent" id="mypoints-btn" onclick="lookupMyPoints()">Look up <span class="key-hint">&#9166;</span></button>
@@ -715,7 +723,7 @@ function loadStoredToken() {
   try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
 }
 
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 const APP_UPDATED = '2026-11-22';
 
 // ---------- sync indicator ----------
@@ -1449,7 +1457,7 @@ function openEditManager(id) {
     <p class="hint" style="margin-bottom:14px;">Automatic weight right now would be ${autoWeight(m)}.</p>
     <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:4px;">Wiscard ID (lets them see their points)</label>
     <input type="password" id="edit-wiscard" name="bm-wiscard-field" autocomplete="new-password" inputmode="numeric" placeholder="${wiscardIds.has(id) ? 'On file. Type a new number to replace it' : 'Not set yet'}" style="width:100%;margin-bottom:6px;" onkeydown="if(event.key==='Enter') submitEditManager('${id}')">
-    <p class="hint" style="margin-bottom:14px;">Stored scrambled. Once saved, nobody can read it back, including leads.${wiscardIds.has(id) ? ` <a href="#" style="color:var(--accent-bright);" onclick="clearWiscardId('${id}'); return false;">Remove it</a>` : ''}</p>
+    ${wiscardIds.has(id) ? `<p class="hint" style="margin-bottom:14px;"><a href="#" style="color:var(--accent-bright);" onclick="clearWiscardId('${id}'); return false;">Remove this ID</a></p>` : '<div style="margin-bottom:14px;"></div>'}
     <div class="row">
       <button class="accent" onclick="submitEditManager('${id}')">Save <span class="key-hint">&#9166;</span></button>
       <button class="ghost" onclick="closeModal()">Cancel</button>
@@ -1891,7 +1899,8 @@ function confirmCancelDraft() {
   state.results = null;
   closeModal();
   document.getElementById('results-card').style.display = 'none';
-  ['status-board', 'revealed-list', 'reveal-stage'].forEach(i => { const el = document.getElementById(i); if (el) el.innerHTML = ''; });
+  ['status-board', 'status-lite', 'revealed-list', 'reveal-stage'].forEach(i => { const el = document.getElementById(i); if (el) el.innerHTML = ''; });
+  const lt = document.getElementById('status-lite'); if (lt) lt.classList.remove('show');
   saveState(); renderRoster();
   toast('Draft cancelled');
 }
@@ -2308,10 +2317,37 @@ function setPickedOption(rowId, value) {
   saveState(); renderResults();
 }
 
+let liteObserver = null;
+function renderStatusLite(metas, rows) {
+  const lite = document.getElementById('status-lite');
+  if (!lite) return;
+  if (!metas.length) { lite.innerHTML = ''; lite.classList.remove('show'); return; }
+  const claimed = new Set(rows.filter(r => (r.tier === 1 || r.tier === 3 || r.tier === 4) && r.pickedOption).map(r => r.pickedOption));
+  const dayOrder = ['Fri', 'Sat', 'Sun', 'Other'];
+  let h = '<span class="lite-title">Still open</span>';
+  let any = false;
+  dayOrder.forEach(day => {
+    const open = metas.filter(m => m.day === day && !claimed.has(m.label));
+    if (!open.length) return;
+    any = true;
+    h += `<span class="lite-day">${escapeHtml(day)}</span>` + open.map(m => `<span class="chip chip-green">${escapeHtml(m.label)}</span>`).join('');
+  });
+  if (!any) h += '<span class="chip chip-red">All picked</span>';
+  lite.innerHTML = h;
+  const board = document.getElementById('status-board');
+  if (!liteObserver && board && 'IntersectionObserver' in window) {
+    liteObserver = new IntersectionObserver(entries => {
+      const e = entries[entries.length - 1];
+      const el = document.getElementById('status-lite');
+      if (el) el.classList.toggle('show', !e.isIntersecting && e.boundingClientRect.top < 0 && !!el.innerHTML);
+    });
+    liteObserver.observe(board);
+  }
+}
 function renderStatusBoard() {
   const board = document.getElementById('status-board');
   if (!board) return;
-  if (!state.results) { board.innerHTML = ''; return; }
+  if (!state.results) { board.innerHTML = ''; const lt = document.getElementById('status-lite'); if (lt) { lt.innerHTML = ''; lt.classList.remove('show'); } return; }
   const rows = state.results.rows;
   const metas = [
     ...(state.results.weekendMeta || []),
@@ -2358,6 +2394,7 @@ function renderStatusBoard() {
     html += '</div>';
   }
   board.innerHTML = html;
+  renderStatusLite(metas, rows);
 }
 
 function renderResults() {
